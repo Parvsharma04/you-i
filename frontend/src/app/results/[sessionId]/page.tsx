@@ -318,7 +318,7 @@ export default function ResultsPage({ params }: { params: Promise<{ sessionId: s
           </div>
 
           {/* Analysis Snippet */}
-          <div className="glass-card p-4 flex flex-col gap-2 w-full max-h-[220px] overflow-hidden bg-bg-card text-left" style={{ borderSize: '3px', boxShadow: '4px 4px 0px var(--border-color)' }}>
+          <div className="glass-card p-4 flex flex-col gap-2 w-full max-h-[220px] overflow-hidden bg-bg-card text-left" style={{ borderWidth: '3px', boxShadow: '4px 4px 0px var(--border-color)' }}>
             <h3 className="text-base font-bold font-display text-text-primary">SYSTEM ANALYSIS</h3>
             <p className="text-text-secondary text-xs leading-relaxed font-medium" style={{ display: '-webkit-box', WebkitLineClamp: 5, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
               {result.summary}
