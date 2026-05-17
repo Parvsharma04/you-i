@@ -89,7 +89,7 @@ export function SoundtrackPlayer() {
         audio.src = track.fallbackUrl;
       }
       audio.load();
-      
+
       // If we already started playing, continue playing the new source
       if (isPlaying) {
         attemptPlay();
@@ -168,13 +168,13 @@ export function SoundtrackPlayer() {
       )}
 
       {/* Floating Retro Widget */}
-      <div 
-        className="fixed top-6 right-6 z-50 flex flex-col items-end gap-2 font-display text-text-primary"
+      <div
+        className="fixed top-6 right-0.5 md:bottom-6 md:top-auto md:right-6 z-50 flex flex-col md:flex-col-reverse items-end gap-2 font-display text-text-primary"
         onMouseEnter={() => setIsExpanded(true)}
         onMouseLeave={() => setIsExpanded(false)}
       >
         {/* Main Audio controller pill */}
-        <div className="flex items-center gap-3 bg-[#fff0f5] border-4 border-black py-2.5 px-4 shadow-[4px_4px_0px_#000] rounded-none hover:translate-y-[-2px] transition-transform">
+        <div className="flex flex-col md:flex-row items-center gap-3 bg-[#fff0f5] border-4 border-black py-2.5 px-0.5 md:px-4 shadow-[4px_4px_0px_#000] rounded-none hover:translate-y-[-2px] transition-transform">
           {/* Animated visualizer bars */}
           {isPlaying && !isMuted ? (
             <div className="flex items-end gap-[3px] h-3 w-4 mr-1">
@@ -192,19 +192,19 @@ export function SoundtrackPlayer() {
 
           {/* Autoplay Unlock Button or Spinning CD Icon */}
           {autoplayBlocked ? (
-            <button 
+            <button
               onClick={togglePlay}
               className="bg-[#ff1493] text-white border-2 border-black text-[10px] font-bold py-1 px-2.5 shadow-[2px_2px_0px_#000] hover:bg-hotpink animate-pulse"
             >
               PLAY MUSIC 🎵
             </button>
           ) : (
-            <button 
+            <button
               onClick={togglePlay}
               className="relative flex items-center justify-center w-8 h-8 rounded-full border-2 border-black bg-white focus:outline-none overflow-hidden"
             >
               {/* Retro vinyl / CD element rotating */}
-              <div 
+              <div
                 className={`w-full h-full bg-[#333] border-2 border-dashed border-white rounded-full flex items-center justify-center ${isPlaying ? 'animate-[spin_4s_linear_infinite]' : ''}`}
               >
                 <div className="w-2.5 h-2.5 bg-[#ffd1dc] rounded-full border border-black" />
@@ -213,15 +213,15 @@ export function SoundtrackPlayer() {
           )}
 
           {/* Basic quick actions */}
-          <div className="flex items-center gap-2">
-            <button 
+          <div className="flex flex-col md:flex-row items-center gap-2">
+            <button
               onClick={toggleMute}
               className="text-lg hover:scale-110 transition-transform active:scale-95"
               title={isMuted ? "Unmute" : "Mute"}
             >
               {isMuted ? '🔇' : '🔊'}
             </button>
-            <button 
+            <button
               onClick={playRandomTrack}
               className="text-lg hover:scale-110 transition-transform active:scale-95"
               title="Next Track"
