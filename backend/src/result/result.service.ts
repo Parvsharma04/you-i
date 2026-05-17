@@ -128,7 +128,20 @@ IMPORTANT: Respond ONLY with valid JSON in this exact format, no other text:
 
       return parsed;
     } catch (error) {
-      console.error('LLM Error:', error);
+      console.error('LLM Error / Race Condition:', error);
+
+      // Check if the other player already generated and saved the result
+      const justCreated = await this.prisma.result.findUnique({
+        where: { sessionId },
+      });
+      if (justCreated) {
+        return {
+          score: justCreated.score,
+          summary: justCreated.summary,
+          strengths: JSON.parse(justCreated.strengths),
+          differences: JSON.parse(justCreated.differences),
+        };
+      }
 
       // Fallback: generate a basic result without LLM
       const fallback = {
@@ -139,20 +152,35 @@ IMPORTANT: Respond ONLY with valid JSON in this exact format, no other text:
         differences: ['AI was too shy to analyze this one'],
       };
 
-      await this.prisma.result.create({
-        data: {
-          sessionId,
-          score: fallback.score,
-          summary: fallback.summary,
-          strengths: JSON.stringify(fallback.strengths),
-          differences: JSON.stringify(fallback.differences),
-        },
-      });
+      try {
+        await this.prisma.result.create({
+          data: {
+            sessionId,
+            score: fallback.score,
+            summary: fallback.summary,
+            strengths: JSON.stringify(fallback.strengths),
+            differences: JSON.stringify(fallback.differences),
+          },
+        });
 
-      await this.prisma.session.update({
-        where: { id: sessionId },
-        data: { status: 'completed' },
-      });
+        await this.prisma.session.update({
+          where: { id: sessionId },
+          data: { status: 'completed' },
+        });
+      } catch (fallbackErr) {
+        // Just in case it was created right this millisecond
+        const createdNow = await this.prisma.result.findUnique({
+          where: { sessionId },
+        });
+        if (createdNow) {
+          return {
+            score: createdNow.score,
+            summary: createdNow.summary,
+            strengths: JSON.parse(createdNow.strengths),
+            differences: JSON.parse(createdNow.differences),
+          };
+        }
+      }
 
       return fallback;
     }
