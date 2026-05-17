@@ -11,6 +11,8 @@ const CATEGORIES = [
   { id: 'deep_talk', label: 'DEEP' },
   { id: 'fun', label: 'FUN' },
   { id: 'spicy', label: 'SPICY' },
+  { id: 'fantasy', label: 'FANTASY' },
+  { id: 'interests', label: 'INTERESTS' },
 ];
 
 const QUESTION_COUNTS = [5, 10, 15, 20];

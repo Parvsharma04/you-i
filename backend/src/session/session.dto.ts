@@ -2,7 +2,7 @@ import { IsString, IsInt, IsIn, Min, Max } from 'class-validator';
 
 export class CreateSessionDto {
   @IsString()
-  @IsIn(['love', 'friendship', 'deep_talk', 'fun', 'spicy'])
+  @IsIn(['love', 'friendship', 'deep_talk', 'fun', 'spicy', 'fantasy', 'interests'])
   category!: string;
 
   @IsInt()
