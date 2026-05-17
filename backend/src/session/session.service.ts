@@ -5,16 +5,15 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { v4 as uuidv4 } from 'uuid';
-import { GoogleGenerativeAI } from '@google/generative-ai';
 import { CreateSessionDto } from './session.dto';
+import { LlmService } from '../llm/llm.service';
 
 @Injectable()
 export class SessionService {
-  private genAI: GoogleGenerativeAI;
-
-  constructor(private readonly prisma: PrismaService) {
-    this.genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY ?? '');
-  }
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly llmService: LlmService,
+  ) {}
 
   async create(dto: CreateSessionDto) {
     const player1Id = uuidv4();
@@ -27,7 +26,6 @@ export class SessionService {
       },
     });
 
-    // Generate questions via Gemini
     const questions = await this.generateQuestions(
       session.id,
       dto.category,
@@ -62,7 +60,7 @@ export class SessionService {
 Generate exactly ${count} compatibility quiz questions for the category: "${categoryLabel}".
 
 Guidelines:
-- Context: Keep the vibe modern, universal, and Gen Z. You can sprinkle in a very light, subtle hint of Indian context occasionally (like mentioning chai or local street food) if it fits naturally, but do not force it or make it purely cultural.
+- Context: Keep the vibe modern, universal, and Gen Z. You can sprinkle in a very light, subtle hint of Indian context occasionally if it fits naturally, but do not force it or make it purely cultural.
 - Goal: Make the questions explorative to help two people know each other on a deeper level. Ask about values, conflict resolution, lifestyle, and quirks.
 - Each question tests compatibility between two people.
 - Make them fun, engaging, and lighthearted.
@@ -74,6 +72,7 @@ Guidelines:
 SECURITY & CONSTRAINTS:
 - Do not include any offensive, hate speech, or politically sensitive content.
 - Output MUST be strictly valid JSON and nothing else.
+- Do not repeat the questions and make sure they arent just repharse from the category name.
 
 IMPORTANT: Respond ONLY with valid JSON in this exact format, no other text:
 [
@@ -90,9 +89,7 @@ IMPORTANT: Respond ONLY with valid JSON in this exact format, no other text:
 ]`;
 
     try {
-      const model = this.genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
-      const result = await model.generateContent(prompt);
-      const text = result.response.text();
+      const text = await this.llmService.generateContent(prompt);
 
       // Extract JSON array from response
       const jsonMatch = text.match(/\[[\s\S]*\]/);
@@ -105,6 +102,7 @@ IMPORTANT: Respond ONLY with valid JSON in this exact format, no other text:
         type: string;
         options: string[] | null;
       }>;
+      console.log("LLM OUTPUT: ", parsed)
 
       // Store questions in database linked to this session
       const createdQuestions = [];

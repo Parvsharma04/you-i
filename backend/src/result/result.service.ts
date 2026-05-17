@@ -1,14 +1,11 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { LlmService } from '../llm/llm.service';
 
 @Injectable()
 export class ResultService {
-  private genAI: GoogleGenerativeAI;
 
-  constructor(private readonly prisma: PrismaService) {
-    this.genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY ?? '');
-  }
+  constructor(private readonly prisma: PrismaService, private readonly llmService: LlmService) {}
 
   async generate(sessionId: string) {
     // Check if result already exists
@@ -102,10 +99,7 @@ IMPORTANT: Respond ONLY with valid JSON in this exact format, no other text:
 }`;
 
     try {
-      const model = this.genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
-      const result = await model.generateContent(prompt);
-      const response = result.response;
-      const text = response.text();
+      const text = await this.llmService.generateContent(prompt);
 
       // Extract JSON from response
       const jsonMatch = text.match(/\{[\s\S]*\}/);

@@ -5,6 +5,7 @@ import { QuestionModule } from './question/question.module';
 import { AnswerModule } from './answer/answer.module';
 import { ResultModule } from './result/result.module';
 import { GatewayModule } from './gateway/gateway.module';
+import { LlmModule } from './llm/llm.module';
 
 @Module({
   imports: [
@@ -14,6 +15,7 @@ import { GatewayModule } from './gateway/gateway.module';
     AnswerModule,
     ResultModule,
     GatewayModule,
+    LlmModule,
   ],
 })
 export class AppModule {}

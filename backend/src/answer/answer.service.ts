@@ -7,7 +7,6 @@ export class AnswerService {
   constructor(private readonly prisma: PrismaService) {}
 
   async submit(dto: SubmitAnswerDto) {
-    // Verify session exists and player belongs to it
     const session = await this.prisma.session.findUnique({
       where: { id: dto.sessionId },
     });
