@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback, use } from 'react';
 import { useRouter } from 'next/navigation';
 import { api, SessionResponse } from '@/lib/api';
 import { useSocket } from '@/lib/useSocket';
-import styles from './lobby.module.css';
+
 
 interface PlayerInfo {
   playerId: string;
@@ -115,8 +115,8 @@ export default function LobbyPage({ params }: { params: Promise<{ sessionId: str
 
   if (error && !session) {
     return (
-      <main className={styles.main}>
-        <div className="container" style={{ justifyContent: 'center', alignItems: 'center', gap: '20px' }}>
+      <main className="min-h-screen flex items-center">
+        <div className="container-custom" style={{ justifyContent: 'center', alignItems: 'center', gap: '20px' }}>
           <span style={{ fontSize: '4rem' }}>X_X</span>
           <h2>{error}</h2>
           <button className="btn-primary" onClick={() => router.push('/')}>
@@ -129,8 +129,8 @@ export default function LobbyPage({ params }: { params: Promise<{ sessionId: str
 
   if (!session) {
     return (
-      <main className={styles.main}>
-        <div className="container" style={{ justifyContent: 'center', alignItems: 'center' }}>
+      <main className="min-h-screen flex items-center">
+        <div className="container-custom" style={{ justifyContent: 'center', alignItems: 'center' }}>
           <div className="spinner" />
         </div>
       </main>
@@ -143,11 +143,11 @@ export default function LobbyPage({ params }: { params: Promise<{ sessionId: str
   const needsToJoin = !playerInfo && isWaiting;
 
   return (
-    <main className={styles.main}>
-      <div className="container" style={{ justifyContent: 'center', gap: '32px' }}>
+    <main className="min-h-screen flex items-center">
+      <div className="container-custom" style={{ justifyContent: 'center', gap: '32px' }}>
         {/* Header */}
-        <div className={styles.header}>
-          <span className={styles.categoryBadge}>
+        <div className="text-center flex flex-col items-center gap-4">
+          <span className="inline-block py-1 px-3 bg-bg-card border-2 border-border-color text-[1.2rem] font-display text-text-primary uppercase shadow-retro-sm">
             MODE: {session.category.replace('_', ' ')}
           </span>
           <h2>
@@ -159,7 +159,7 @@ export default function LobbyPage({ params }: { params: Promise<{ sessionId: str
               'WAITING FOR P2...'
             )}
           </h2>
-          <p className={styles.subtitle}>
+          <p className="text-text-secondary text-[1.1rem] font-display">
             {isActive
               ? 'LOADING LEVEL...'
               : needsToJoin
@@ -170,7 +170,7 @@ export default function LobbyPage({ params }: { params: Promise<{ sessionId: str
 
         {/* Active - transitioning */}
         {isActive && (
-          <div className={styles.transitionCard}>
+          <div className="flex flex-col items-center gap-4 p-8">
             <div className="spinner" />
             <p>LOADING...</p>
           </div>
@@ -178,7 +178,7 @@ export default function LobbyPage({ params }: { params: Promise<{ sessionId: str
 
         {/* Need to join */}
         {needsToJoin && (
-          <div className={styles.joinSection}>
+          <div className="flex flex-col gap-4">
             <button
               id="join-btn"
               className="btn-primary"
@@ -188,19 +188,19 @@ export default function LobbyPage({ params }: { params: Promise<{ sessionId: str
             >
               {joining ? 'JOINING...' : 'JOIN GAME'}
             </button>
-            {error && <p className={styles.error}>{error}</p>}
+            {error && <p className="text-red-500 text-base text-center font-display">{error}</p>}
           </div>
         )}
 
         {/* Host waiting - share section */}
         {isHost && isWaiting && (
           <>
-            <div className={styles.linkCard}>
-              <p className={styles.linkLabel}>INVITE LINK</p>
-              <div className={styles.linkBox}>
-                <code className={styles.linkText}>{shareLink}</code>
+            <div className="p-6 flex flex-col gap-4 bg-bg-card border-4 border-border-color shadow-retro">
+              <p className="text-[1.2rem] font-display text-text-primary">INVITE LINK</p>
+              <div className="p-3 bg-bg-secondary border-2 border-border-color overflow-x-auto shadow-input">
+                <code className="text-base text-text-primary break-all">{shareLink}</code>
               </div>
-              <div className={styles.shareActions}>
+              <div className="flex gap-2.5 flex-wrap justify-center">
                 <button
                   id="copy-link-btn"
                   className="share-btn"
@@ -218,9 +218,9 @@ export default function LobbyPage({ params }: { params: Promise<{ sessionId: str
               </div>
             </div>
 
-            <div className={styles.waitingIndicator}>
-              <div className={styles.pulseRing} />
-              <p className="waiting-dots">
+            <div className="flex flex-col items-center gap-5 mt-6">
+              <div className="pulseRing" />
+              <p className="waiting-dots text-text-secondary text-[1.2rem] font-display">
                 AWAITING CONNECTION<span>.</span><span>.</span><span>.</span>
               </p>
             </div>
@@ -229,9 +229,9 @@ export default function LobbyPage({ params }: { params: Promise<{ sessionId: str
 
         {/* Already joined, waiting for redirect */}
         {playerInfo && !isHost && isWaiting && (
-          <div className={styles.waitingIndicator}>
-            <div className={styles.pulseRing} />
-            <p className="waiting-dots">WAITING FOR HOST<span>.</span><span>.</span><span>.</span></p>
+          <div className="flex flex-col items-center gap-5 mt-6">
+            <div className="pulseRing" />
+            <p className="waiting-dots text-text-secondary text-[1.2rem] font-display">WAITING FOR HOST<span>.</span><span>.</span><span>.</span></p>
           </div>
         )}
       </div>

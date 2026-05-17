@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback, use } from 'react';
 import { useRouter } from 'next/navigation';
 import { api, Question } from '@/lib/api';
 import { useSocket } from '@/lib/useSocket';
-import styles from './quiz.module.css';
+
 
 interface PlayerInfo {
   playerId: string;
@@ -111,8 +111,8 @@ export default function QuizPage({ params }: { params: Promise<{ sessionId: stri
 
   if (error) {
     return (
-      <main className={styles.main}>
-        <div className="container" style={{ justifyContent: 'center', alignItems: 'center', gap: '20px' }}>
+      <main className="min-h-screen">
+        <div className="container-custom" style={{ justifyContent: 'center', alignItems: 'center', gap: '20px' }}>
           <span style={{ fontSize: '3rem' }}>X_X</span>
           <p style={{ color: 'var(--text-secondary)' }}>{error}</p>
         </div>
@@ -122,8 +122,8 @@ export default function QuizPage({ params }: { params: Promise<{ sessionId: stri
 
   if (questions.length === 0) {
     return (
-      <main className={styles.main}>
-        <div className="container" style={{ justifyContent: 'center', alignItems: 'center' }}>
+      <main className="min-h-screen">
+        <div className="container-custom" style={{ justifyContent: 'center', alignItems: 'center' }}>
           <div className="spinner" />
         </div>
       </main>
@@ -133,20 +133,20 @@ export default function QuizPage({ params }: { params: Promise<{ sessionId: stri
   // Waiting for other player to finish
   if (waitingForOther) {
     return (
-      <main className={styles.main}>
-        <div className="container" style={{ justifyContent: 'center', alignItems: 'center', gap: '24px' }}>
-          <div className={styles.doneCard}>
+      <main className="min-h-screen">
+        <div className="container-custom" style={{ justifyContent: 'center', alignItems: 'center', gap: '24px' }}>
+          <div className="text-center flex flex-col items-center gap-4 p-10 animate-[bounceIn_0.8s_ease_forwards]">
             <span style={{ fontSize: '4rem' }}>^__^</span>
             <h2>STAGE CLEAR</h2>
-            <p className={styles.waitText}>
+            <p className="text-text-secondary text-base font-medium">
               AWAITING P2<span className="waiting-dots"><span>.</span><span>.</span><span>.</span></span>
             </p>
-            <div className={styles.otherProgressSection}>
-              <p className={styles.progressLabel}>P2 PROGRESS</p>
+            <div className="flex flex-col items-center gap-2 mt-4 w-full max-w-[300px]">
+              <p className="text-[0.75rem] font-bold text-text-muted lowercase tracking-[1.5px] w-10 shrink-0 text-center">P2 PROGRESS</p>
               <div className="progress-bar-container" style={{ maxWidth: 300 }}>
                 <div className="progress-bar-fill" style={{ width: `${otherProgress}%` }} />
               </div>
-              <p className={styles.progressPercent}>{Math.round(otherProgress)}%</p>
+              <p className="text-[0.85rem] text-text-muted font-bold">{Math.round(otherProgress)}%</p>
             </div>
           </div>
         </div>
@@ -155,28 +155,28 @@ export default function QuizPage({ params }: { params: Promise<{ sessionId: stri
   }
 
   return (
-    <main className={styles.main}>
-      <div className="container" style={{ gap: '24px', paddingTop: '40px' }}>
+    <main className="min-h-screen">
+      <div className="container-custom" style={{ gap: '24px', paddingTop: '40px' }}>
         {/* Top bar */}
-        <div className={styles.topBar}>
-          <span className={styles.questionCounter}>
+        <div className="flex justify-between items-center animate-[fadeIn_0.4s_ease]">
+          <span className="text-[0.85rem] font-bold text-text-muted tracking-[1.5px] lowercase">
             STAGE {currentIndex + 1}/{questions.length}
           </span>
-          <span className={styles.playerBadge}>
+          <span className="py-1.5 px-4 bg-[rgba(255,20,147,0.08)] border border-[rgba(255,105,180,0.15)] rounded-none text-[0.8rem] text-text-secondary font-semibold">
             {playerInfo?.isHost ? 'PLAYER 1' : 'PLAYER 2'}
           </span>
         </div>
 
         {/* Progress bars */}
-        <div className={styles.progressSection}>
-          <div className={styles.progressRow}>
-            <span className={styles.progressLabel}>YOU</span>
+        <div className="flex flex-col gap-2">
+          <div className="flex items-center gap-3">
+            <span className="text-[0.75rem] font-bold text-text-muted lowercase tracking-[1.5px] w-10 shrink-0">YOU</span>
             <div className="progress-bar-container" style={{ flex: 1 }}>
               <div className="progress-bar-fill" style={{ width: `${progress}%` }} />
             </div>
           </div>
-          <div className={styles.progressRow}>
-            <span className={styles.progressLabel} style={{ opacity: 0.5 }}>P2</span>
+          <div className="flex items-center gap-3">
+            <span className="text-[0.75rem] font-bold text-text-muted lowercase tracking-[1.5px] w-10 shrink-0" style={{ opacity: 0.5 }}>P2</span>
             <div className="progress-bar-container" style={{ flex: 1 }}>
               <div
                 className="progress-bar-fill"
@@ -190,11 +190,11 @@ export default function QuizPage({ params }: { params: Promise<{ sessionId: stri
         </div>
 
         {/* Question */}
-        <div className={styles.questionCard} key={currentIndex}>
-          <h2 className={styles.questionText}>{currentQuestion.text}</h2>
+        <div className="flex flex-col gap-6 py-8 px-6 bg-[rgba(255,255,255,0.7)] border border-[rgba(139,0,0,0.2)] rounded-none backdrop-blur-[20px] animate-[fadeInUp_0.5s_ease_forwards] relative overflow-hidden before:content-[''] before:absolute before:top-0 before:left-0 before:right-0 before:h-[1px] before:bg-gradient-to-r before:from-transparent before:via-[rgba(255,182,193,0.4)] before:to-transparent" key={currentIndex}>
+          <h2 className="text-[1.3rem] font-bold leading-[1.4]">{currentQuestion.text}</h2>
 
           {currentQuestion.type === 'mcq' && currentQuestion.options ? (
-            <div className={styles.options}>
+            <div className="flex flex-col gap-2.5">
               {currentQuestion.options.map((opt, i) => (
                 <button
                   key={i}
@@ -209,7 +209,7 @@ export default function QuizPage({ params }: { params: Promise<{ sessionId: stri
           ) : (
             <textarea
               id="text-answer"
-              className={`text-input ${styles.textArea}`}
+              className="text-input resize-y min-h-[80px] max-h-[200px]"
               placeholder="TYPE YOUR ANSWER..."
               value={textAnswer}
               onChange={(e) => setTextAnswer(e.target.value)}

@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback, use } from 'react';
 import { useRouter } from 'next/navigation';
 import { api, QuizResult } from '@/lib/api';
-import styles from './results.module.css';
+
 
 export default function ResultsPage({ params }: { params: Promise<{ sessionId: string }> }) {
   const { sessionId } = use(params);
@@ -100,12 +100,12 @@ export default function ResultsPage({ params }: { params: Promise<{ sessionId: s
 
   if (loading) {
     return (
-      <main className={styles.main}>
-        <div className="container" style={{ justifyContent: 'center', alignItems: 'center', gap: '24px' }}>
-          <div className={styles.loadingCard}>
+      <main className="min-h-screen relative overflow-hidden">
+        <div className="container-custom" style={{ justifyContent: 'center', alignItems: 'center', gap: '24px' }}>
+          <div className="text-center flex flex-col items-center gap-5 p-10 animate-[fadeIn_0.6s_ease]">
             <div className="spinner" />
             <h3>ANALYZING...</h3>
-            <p className={styles.loadingSubtext}>
+            <p className="text-text-muted text-[0.95rem] font-medium italic">
               CALCULATING VIBES
             </p>
           </div>
@@ -116,8 +116,8 @@ export default function ResultsPage({ params }: { params: Promise<{ sessionId: s
 
   if (!result) {
     return (
-      <main className={styles.main}>
-        <div className="container" style={{ justifyContent: 'center', alignItems: 'center', gap: '20px' }}>
+      <main className="min-h-screen relative overflow-hidden">
+        <div className="container-custom" style={{ justifyContent: 'center', alignItems: 'center', gap: '20px' }}>
           <span style={{ fontSize: '4rem' }}>X_X</span>
           <h2>DATA NOT FOUND</h2>
           <p style={{ color: 'var(--text-secondary)' }}>BOTH PLAYERS MUST FINISH.</p>
@@ -130,39 +130,39 @@ export default function ResultsPage({ params }: { params: Promise<{ sessionId: s
   }
 
   return (
-    <main className={styles.main}>
-      <div className="container" style={{ gap: '32px', paddingTop: '40px', paddingBottom: '60px' }}>
+    <main className="min-h-screen relative overflow-hidden">
+      <div className="container-custom" style={{ gap: '32px', paddingTop: '40px', paddingBottom: '60px' }}>
         {/* Score Section */}
-        <div className={styles.scoreSection}>
-          <span className={styles.resultEmoji}>{getScoreEmoji(result.score)}</span>
+        <div className="flex flex-col items-center gap-[18px] py-5 animate-[fadeInUp_0.8s_ease_forwards]">
+          <span className="text-[3.5rem] animate-[bounceIn_0.8s_ease_0.3s_both]">{getScoreEmoji(result.score)}</span>
 
           <div className="score-circle">
             <span className="score-number">{animatedScore}</span>
           </div>
 
-          <h2 className={styles.scoreLabel}>
+          <h2 className="text-[1.6rem] text-center font-display">
             <span className="text-gradient">{getScoreLabel(result.score)}</span>
           </h2>
 
-          <p className={styles.scorePercent}>{result.score}% MATCH</p>
+          <p className="text-text-secondary text-base font-semibold">{result.score}% MATCH</p>
         </div>
 
         {/* AI Summary */}
         {showContent && (
           <>
-            <div className={`glass-card ${styles.summaryCard}`}>
-              <div className={styles.cardHeader}>
-                <h3>SYSTEM ANALYSIS</h3>
+            <div className="glass-card p-6 flex flex-col gap-4 opacity-0 animate-[fadeInUp_0.6s_ease_forwards] [animation-delay:0.1s]">
+              <div className="flex items-center gap-2.5">
+                <h3 className="text-[1.1rem] font-bold">SYSTEM ANALYSIS</h3>
               </div>
-              <p className={styles.summaryText}>{result.summary}</p>
+              <p className="text-text-secondary text-base leading-[1.7] font-medium">{result.summary}</p>
             </div>
 
             {/* Strengths */}
-            <div className={`glass-card ${styles.listCard}`}>
-              <div className={styles.cardHeader}>
-                <h3>STRENGTHS</h3>
+            <div className="glass-card p-6 flex flex-col gap-4 opacity-0 animate-[fadeInUp_0.6s_ease_forwards] [animation-delay:0.2s]">
+              <div className="flex items-center gap-2.5">
+                <h3 className="text-[1.1rem] font-bold">STRENGTHS</h3>
               </div>
-              <div className={styles.tagList}>
+              <div className="flex flex-wrap gap-2">
                 {result.strengths.map((s, i) => (
                   <span key={i} className="tag strength">
                     {s}
@@ -172,11 +172,11 @@ export default function ResultsPage({ params }: { params: Promise<{ sessionId: s
             </div>
 
             {/* Differences */}
-            <div className={`glass-card ${styles.listCard}`}>
-              <div className={styles.cardHeader}>
-                <h3>WEAKNESSES</h3>
+            <div className="glass-card p-6 flex flex-col gap-4 opacity-0 animate-[fadeInUp_0.6s_ease_forwards] [animation-delay:0.3s]">
+              <div className="flex items-center gap-2.5">
+                <h3 className="text-[1.1rem] font-bold">WEAKNESSES</h3>
               </div>
-              <div className={styles.tagList}>
+              <div className="flex flex-wrap gap-2">
                 {result.differences.map((d, i) => (
                   <span key={i} className="tag difference">
                     {d}
@@ -186,9 +186,9 @@ export default function ResultsPage({ params }: { params: Promise<{ sessionId: s
             </div>
 
             {/* Share Section */}
-            <div className={styles.shareSection}>
-              <h3 className={styles.shareTitle}>SHARE RECORD:</h3>
-              <div className={styles.shareActions}>
+            <div className="text-center flex flex-col items-center gap-4 animate-[fadeInUp_0.6s_ease_0.4s_both]">
+              <h3 className="text-base font-bold text-text-secondary">SHARE RECORD:</h3>
+              <div className="flex gap-3 flex-wrap justify-center">
                 <button
                   id="copy-result-btn"
                   className="share-btn"

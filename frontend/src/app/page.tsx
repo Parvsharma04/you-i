@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
-import styles from './page.module.css';
+
 
 const CATEGORIES = [
   { id: 'love', label: '<3 LOVE' },
@@ -39,23 +39,23 @@ export default function LandingPage() {
   };
 
   return (
-    <main className={styles.main}>
-      <div className="container" style={{ justifyContent: 'center', gap: '32px' }}>
-        <div className={styles.hero}>
-          <div className={styles.logoWrapper}>
-            <span className={styles.logo}>&lt;3</span>
+    <main className="min-h-screen flex items-center">
+      <div className="container-custom" style={{ justifyContent: 'center', gap: '32px' }}>
+        <div className="text-center flex flex-col items-center gap-4 mb-6">
+          <div className="w-[80px] h-[80px] bg-bg-card flex items-center justify-center border-4 border-border-color shadow-retro">
+            <span className="text-2xl font-display text-accent">&lt;3</span>
           </div>
           <h1 className="text-love">
             HIM &amp; HER
           </h1>
-          <p className={styles.subtitle}>
+          <p className="text-text-secondary text-[1.2rem] leading-relaxed font-display uppercase">
             PLAYER 1, PRESS START
           </p>
         </div>
 
-        <div className={styles.section}>
-          <h3 className={styles.sectionTitle}>SELECT MODE:</h3>
-          <div className={styles.categories}>
+        <div className="flex flex-col gap-4">
+          <h3 className="text-[1.2rem] font-display text-text-primary">SELECT MODE:</h3>
+          <div className="flex flex-wrap gap-3">
             {CATEGORIES.map((cat) => (
               <button key={cat.id} id={`category-${cat.id}`}
                 className={`category-pill ${cat.id} ${category === cat.id ? 'active' : ''}`}
@@ -66,9 +66,9 @@ export default function LandingPage() {
           </div>
         </div>
 
-        <div className={styles.section}>
-          <h3 className={styles.sectionTitle}>ROUNDS:</h3>
-          <div className={styles.counts}>
+        <div className="flex flex-col gap-4">
+          <h3 className="text-[1.2rem] font-display text-text-primary">ROUNDS:</h3>
+          <div className="flex gap-3">
             {QUESTION_COUNTS.map((c) => (
               <button key={c} id={`count-${c}`}
                 className={`count-btn ${questionCount === c ? 'active' : ''}`}
@@ -79,7 +79,7 @@ export default function LandingPage() {
           </div>
         </div>
 
-        {error && <p className={styles.error}>{error}</p>}
+        {error && <p className="text-red-500 text-base text-center font-display">{error}</p>}
 
         <button id="start-quiz-btn" className="btn-primary" onClick={handleStart}
           disabled={loading} style={{ width: '100%', padding: '16px' }}>
