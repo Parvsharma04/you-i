@@ -59,7 +59,7 @@ export default function ResultsPage({ params }: { params: Promise<{ sessionId: s
 
   const handleCopy = useCallback(async () => {
     const shareText = result
-      ? `HIM & HER SCORE: ${result.score}%. PLAY: ${shareLink}`
+      ? `YOU & I SCORE: ${result.score}%. PLAY: ${shareLink}`
       : shareLink;
     try {
       await navigator.clipboard.writeText(shareText);
@@ -73,7 +73,7 @@ export default function ResultsPage({ params }: { params: Promise<{ sessionId: s
 
   const handleShareWhatsApp = () => {
     const text = encodeURIComponent(
-      `HIM & HER SCORE: ${result?.score ?? '??'}%. \n\nPLAY NOW: ${shareLink}`
+      `YOU & I SCORE: ${result?.score ?? '??'}%. \n\nPLAY NOW: ${shareLink}`
     );
     window.open(`https://wa.me/?text=${text}`, '_blank');
   };

@@ -46,7 +46,7 @@ export default function LandingPage() {
             <span className="text-2xl font-display text-accent">&lt;3</span>
           </div>
           <h1 className="text-love">
-            HIM &amp; HER
+            You &amp; I
           </h1>
           <p className="text-text-secondary text-[1.2rem] leading-relaxed font-display uppercase">
             PLAYER 1, PRESS START

@@ -55,7 +55,7 @@ export class SessionService {
 
     const categoryLabel = categoryLabels[category] || category;
 
-    const prompt = `You are a quiz designer for a viral compatibility app called "him&her".
+    const prompt = `You are a quiz designer for a viral compatibility app called "you&i".
 
 Generate exactly ${count} compatibility quiz questions for the category: "${categoryLabel}".
 

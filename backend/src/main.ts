@@ -20,7 +20,7 @@ async function bootstrap(): Promise<void> {
 
   const port = process.env.PORT ?? 3001;
   await app.listen(port);
-  console.log(`🚀 him&her backend running on http://localhost:${port}`);
+  console.log(`🚀 you&i backend running on http://localhost:${port}`);
 }
 
 bootstrap();
