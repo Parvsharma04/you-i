@@ -169,38 +169,10 @@ export function SoundtrackPlayer() {
 
       {/* Floating Retro Widget */}
       <div 
-        className="fixed bottom-6 right-6 z-50 flex flex-col items-end gap-2 font-display text-text-primary"
+        className="fixed top-6 right-6 z-50 flex flex-col items-end gap-2 font-display text-text-primary"
         onMouseEnter={() => setIsExpanded(true)}
         onMouseLeave={() => setIsExpanded(false)}
       >
-        {/* Expanded Track info & Customization Help */}
-        {isExpanded && (
-          <div className="bg-[#fff0f5] border-4 border-black p-4 w-72 flex flex-col gap-3 shadow-[6px_6px_0px_#000] animate-[fadeInUp_0.2s_ease_forwards] text-left">
-            <h4 className="text-xs font-bold text-[#ff1493] border-b-2 border-black pb-1 tracking-wider">RETRO SOUNDTRACK</h4>
-            <div className="text-xs leading-relaxed text-text-secondary flex flex-col gap-1.5">
-              <p className="font-bold text-black">{currentTrack.title}</p>
-              <p className="italic">{currentTrack.artist}</p>
-            </div>
-            <div className="bg-[#ffd1dc] border-2 border-black p-2 text-[10px] text-text-secondary font-sans leading-normal">
-              💡 <span className="font-bold">Pro Tip:</span> Place your own MP3 files (e.g. <code className="bg-white px-1">only_shorty.mp3</code>, <code className="bg-white px-1">kiss_me_thru_the_phone.mp3</code>) in <code className="font-mono">public/audio/</code> to play the high-quality originals!
-            </div>
-            <div className="flex gap-2 justify-between">
-              {TRACKS.map((t, idx) => (
-                <button
-                  key={t.id}
-                  onClick={() => {
-                    setCurrentTrackIndex(idx);
-                    setIsPlaying(true);
-                  }}
-                  className={`text-[9px] border p-1 font-bold ${currentTrackIndex === idx ? 'bg-[#ff1493] text-white border-black' : 'bg-white border-gray-300 hover:border-black'}`}
-                >
-                  TRACK {idx + 1}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-
         {/* Main Audio controller pill */}
         <div className="flex items-center gap-3 bg-[#fff0f5] border-4 border-black py-2.5 px-4 shadow-[4px_4px_0px_#000] rounded-none hover:translate-y-[-2px] transition-transform">
           {/* Animated visualizer bars */}
@@ -258,6 +230,31 @@ export function SoundtrackPlayer() {
             </button>
           </div>
         </div>
+
+        {/* Compact Expanded Track info (Dropdowns below the pill at top-right) */}
+        {isExpanded && (
+          <div className="bg-[#fff0f5] border-4 border-black p-4 w-72 flex flex-col gap-3 shadow-[6px_6px_0px_#000] animate-[fadeIn_0.2s_ease_forwards] text-left mt-1">
+            <h4 className="text-xs font-bold text-[#ff1493] border-b-2 border-black pb-1 tracking-wider">RETRO SOUNDTRACK</h4>
+            <div className="text-xs leading-relaxed text-text-secondary flex flex-col gap-1">
+              <p className="font-bold text-black">{currentTrack.title}</p>
+              <p className="italic">{currentTrack.artist}</p>
+            </div>
+            <div className="flex gap-2 justify-between mt-1">
+              {TRACKS.map((t, idx) => (
+                <button
+                  key={t.id}
+                  onClick={() => {
+                    setCurrentTrackIndex(idx);
+                    setIsPlaying(true);
+                  }}
+                  className={`text-[9px] border p-1.5 font-bold ${currentTrackIndex === idx ? 'bg-[#ff1493] text-white border-black' : 'bg-white border-gray-300 hover:border-black'}`}
+                >
+                  TRACK {idx + 1}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Embedded visualizer keyframe animations */}
