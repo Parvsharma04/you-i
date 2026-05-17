@@ -12,17 +12,18 @@ export function useSocket(sessionId: string | null, playerId: string | null) {
     if (!sessionId || !playerId) return;
 
     const socket = io(SOCKET_URL, {
-      transports: ['websocket', 'polling'],
+      transports: ['websocket'],
     });
 
     socket.on('connect', () => {
-      console.log('Socket connected');
+      console.log('Socket connected:', socket.id);
       socket.emit('joinRoom', { sessionId, playerId });
     });
 
     socketRef.current = socket;
 
     return () => {
+      console.log('Disconnecting socket:', socket.id);
       socket.disconnect();
       socketRef.current = null;
     };
