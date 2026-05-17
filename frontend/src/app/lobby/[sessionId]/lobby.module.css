@@ -1,0 +1,47 @@
+.main { min-height: 100vh; display: flex; align-items: center; }
+.header {
+  text-align: center; display: flex; flex-direction: column;
+  align-items: center; gap: 16px;
+}
+.categoryBadge {
+  display: inline-block; padding: 4px 12px;
+  background: var(--bg-card); border: 2px solid var(--border-color);
+  font-size: 1.2rem; font-family: var(--font-display);
+  color: var(--text-primary); text-transform: uppercase;
+  box-shadow: 2px 2px 0px var(--border-color);
+}
+.subtitle { color: var(--text-secondary); font-size: 1.1rem; font-family: var(--font-display); }
+
+.linkCard {
+  padding: 24px; display: flex; flex-direction: column; gap: 16px;
+  background: var(--bg-card); border: 4px solid var(--border-color);
+  box-shadow: var(--shadow-retro);
+}
+.linkLabel {
+  font-size: 1.2rem; font-family: var(--font-display);
+  color: var(--text-primary);
+}
+.linkBox {
+  padding: 12px; background: var(--bg-secondary);
+  border: 2px solid var(--border-color); overflow-x: auto;
+  box-shadow: inset 2px 2px 0px rgba(0,0,0,0.1);
+}
+.linkText {
+  font-size: 1rem; color: var(--text-primary); word-break: break-all;
+}
+.shareActions { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+
+.waitingIndicator {
+  display: flex; flex-direction: column; align-items: center; gap: 20px;
+  margin-top: 24px;
+}
+.waitingIndicator p { color: var(--text-secondary); font-size: 1.2rem; font-family: var(--font-display); }
+
+.joinSection {
+  display: flex; flex-direction: column; gap: 16px;
+}
+.error { color: red; font-size: 1rem; text-align: center; font-family: var(--font-display); }
+.transitionCard {
+  display: flex; flex-direction: column; align-items: center;
+  gap: 16px; padding: 32px;
+}

@@ -1,0 +1,36 @@
+.main { min-height: 100vh; position: relative; overflow: hidden; }
+
+.scoreSection {
+  display: flex; flex-direction: column; align-items: center;
+  gap: 18px; padding: 20px 0; animation: fadeInUp 0.8s ease forwards;
+}
+.resultEmoji { font-size: 3.5rem; animation: bounceIn 0.8s ease 0.3s both; }
+.scoreLabel { font-size: 1.6rem; text-align: center; font-family: var(--font-display); }
+.scorePercent { color: var(--text-secondary); font-size: 1rem; font-weight: 600; }
+
+.summaryCard, .listCard {
+  padding: 24px; display: flex; flex-direction: column; gap: 16px;
+  animation: fadeInUp 0.6s ease forwards; opacity: 0;
+}
+.summaryCard { animation-delay: 0.1s; }
+.listCard:nth-of-type(2) { animation-delay: 0.2s; }
+.listCard:nth-of-type(3) { animation-delay: 0.3s; }
+
+.cardHeader { display: flex; align-items: center; gap: 10px; }
+.cardHeader span { font-size: 1.3rem; }
+.cardHeader h3 { font-size: 1.1rem; font-weight: 700; }
+.summaryText { color: var(--text-secondary); font-size: 1rem; line-height: 1.7; font-weight: 500; }
+.tagList { display: flex; flex-wrap: wrap; gap: 8px; }
+
+.shareSection {
+  text-align: center; display: flex; flex-direction: column;
+  align-items: center; gap: 16px; animation: fadeInUp 0.6s ease 0.4s both;
+}
+.shareTitle { font-size: 1rem; font-weight: 700; color: var(--text-secondary); }
+.shareActions { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; }
+
+.loadingCard {
+  text-align: center; display: flex; flex-direction: column;
+  align-items: center; gap: 20px; padding: 40px; animation: fadeIn 0.6s ease;
+}
+.loadingSubtext { color: var(--text-muted); font-size: 0.95rem; font-weight: 500; font-style: italic; }
