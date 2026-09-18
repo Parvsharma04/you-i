@@ -76,7 +76,8 @@ export function useShareResult(): UseShareResultReturn {
       }
 
       setStatus('saving');
-      const permission = await MediaLibrary.requestPermissionsAsync();
+      // writeOnly=true avoids requesting read access to the user's library.
+      const permission = await MediaLibrary.requestPermissionsAsync(true);
       if (!permission.granted) {
         setStatus('idle');
         Alert.alert(

@@ -11,6 +11,10 @@ const WS_URL = process.env.EXPO_PUBLIC_WS_URL ?? API_URL;
 const WEB_URL = process.env.EXPO_PUBLIC_WEB_URL ?? 'https://you-i.onrender.com';
 const BUNDLE_IDENTIFIER_SUFFIX = APP_ENV === 'production' ? '' : `.${APP_ENV}`;
 
+// Permanent Play Store identifier. Must never change after first publish.
+const ANDROID_PACKAGE = 'com.youandi.app';
+const IOS_BUNDLE_IDENTIFIER = 'com.youandi.mobile';
+
 // Android App Links need the exact host served by the web app.
 // new URL is safe here because app.config.ts runs in Node during the Expo build.
 const WEB_HOST = (() => {
@@ -23,24 +27,50 @@ const WEB_HOST = (() => {
 
 export default ({ config }: ConfigContext): ExpoConfig => ({
   ...config,
-  name: 'mobile',
+  name: 'You & I',
   slug: 'mobile',
   version: '1.0.0',
   orientation: 'portrait',
   icon: './assets/images/icon.png',
   scheme: 'youandi',
   userInterfaceStyle: 'automatic',
+  locales: {
+    en: { CFBundleDisplayName: 'You & I', app_name: 'You & I' },
+    es: { CFBundleDisplayName: 'You & I', app_name: 'You & I' },
+    fr: { CFBundleDisplayName: 'You & I', app_name: 'You & I' },
+    de: { CFBundleDisplayName: 'You & I', app_name: 'You & I' },
+    hi: { CFBundleDisplayName: 'You & I', app_name: 'You & I' },
+    pt: { CFBundleDisplayName: 'You & I', app_name: 'You & I' },
+    ja: { CFBundleDisplayName: 'You & I', app_name: 'You & I' },
+    ko: { CFBundleDisplayName: 'You & I', app_name: 'You & I' },
+    zh: { CFBundleDisplayName: 'You & I', app_name: 'You & I' },
+  },
   ios: {
     ...config.ios,
     icon: './assets/expo.icon',
-    bundleIdentifier: `com.youandi.mobile${BUNDLE_IDENTIFIER_SUFFIX}`,
+    bundleIdentifier: `${IOS_BUNDLE_IDENTIFIER}${BUNDLE_IDENTIFIER_SUFFIX}`,
   },
   android: {
     ...config.android,
-    package: `com.youandi.mobile${BUNDLE_IDENTIFIER_SUFFIX}`,
+    package: `${ANDROID_PACKAGE}${BUNDLE_IDENTIFIER_SUFFIX}`,
+    // versionCode is intentionally omitted; EAS Build auto-increments it.
     // Ensure the layout resizes when the keyboard opens so
     // KeyboardAvoidingView can keep the submit button visible.
     softwareKeyboardLayoutMode: 'resize',
+    // Player IDs are bearer secrets; disable Android Auto Backup.
+    allowBackup: false,
+    // Keep only permissions the app actually uses. Every extra permission is a
+    // data-safety form question and a reason not to install.
+    permissions: ['INTERNET', 'VIBRATE', 'WRITE_EXTERNAL_STORAGE'],
+    blockedPermissions: [
+      'SYSTEM_ALERT_WINDOW',
+      'READ_EXTERNAL_STORAGE',
+      'READ_MEDIA_VISUAL_USER_SELECTED',
+      'READ_MEDIA_IMAGES',
+      'READ_MEDIA_VIDEO',
+      'READ_MEDIA_AUDIO',
+      'ACCESS_MEDIA_LOCATION',
+    ],
     intentFilters: [
       {
         autoVerify: true,
@@ -56,9 +86,8 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       },
     ],
     adaptiveIcon: {
-      backgroundColor: '#E6F4FE',
       foregroundImage: './assets/images/android-icon-foreground.png',
-      backgroundImage: './assets/images/android-icon-background.png',
+      backgroundColor: '#E6F4FE',
       monochromeImage: './assets/images/android-icon-monochrome.png',
     },
     predictiveBackGestureEnabled: false,
@@ -76,6 +105,11 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
         backgroundColor: '#208AEF',
         image: './assets/images/splash-icon.png',
         imageWidth: 76,
+        resizeMode: 'contain',
+        dark: {
+          backgroundColor: '#0F172A',
+          image: './assets/images/splash-icon.png',
+        },
       },
     ],
     'expo-sharing',
@@ -86,7 +120,9 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
           'Allow You & I to save your result image to your photo library.',
         savePhotosPermission:
           'Allow You & I to save your result image to your photo library.',
-        isAccessMediaLocationEnabled: true,
+        // We only save images; never read the user's library or access GPS metadata.
+        isAccessMediaLocationEnabled: false,
+        granularPermissions: [],
       },
     ],
   ],
