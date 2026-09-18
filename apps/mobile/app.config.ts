@@ -11,6 +11,16 @@ const WS_URL = process.env.EXPO_PUBLIC_WS_URL ?? API_URL;
 const WEB_URL = process.env.EXPO_PUBLIC_WEB_URL ?? 'https://you-i.onrender.com';
 const BUNDLE_IDENTIFIER_SUFFIX = APP_ENV === 'production' ? '' : `.${APP_ENV}`;
 
+// Android App Links need the exact host served by the web app.
+// new URL is safe here because app.config.ts runs in Node during the Expo build.
+const WEB_HOST = (() => {
+  try {
+    return new URL(WEB_URL).hostname;
+  } catch {
+    return 'you-i.onrender.com';
+  }
+})();
+
 export default ({ config }: ConfigContext): ExpoConfig => ({
   ...config,
   name: 'mobile',
@@ -18,7 +28,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   version: '1.0.0',
   orientation: 'portrait',
   icon: './assets/images/icon.png',
-  scheme: 'mobile',
+  scheme: 'youandi',
   userInterfaceStyle: 'automatic',
   ios: {
     ...config.ios,
@@ -28,6 +38,20 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   android: {
     ...config.android,
     package: `com.youandi.mobile${BUNDLE_IDENTIFIER_SUFFIX}`,
+    intentFilters: [
+      {
+        autoVerify: true,
+        action: 'VIEW',
+        data: [
+          {
+            scheme: 'https',
+            host: WEB_HOST,
+            pathPrefix: '/lobby',
+          },
+        ],
+        category: ['BROWSABLE', 'DEFAULT'],
+      },
+    ],
     adaptiveIcon: {
       backgroundColor: '#E6F4FE',
       foregroundImage: './assets/images/android-icon-foreground.png',
