@@ -19,9 +19,13 @@ import { Card } from '@/components/ui/card';
 import { Screen } from '@/components/ui/screen';
 import { Text } from '@/components/ui/text';
 import { createSession } from '@/lib/api';
+import { env } from '@/lib/env';
+import { useAppFonts } from '@/lib/fonts';
 import { saveSession, type SessionRecord } from '@/lib/storage';
 
 import { useResult } from './use-result';
+import { ShareCard } from './ShareCard';
+import { useShareResult } from './use-share-result';
 
 const AnimatedTextInput = Animated.createAnimatedComponent(TextInput);
 
@@ -111,7 +115,18 @@ export default function ResultScreen({ record }: ResultScreenProps) {
     record.sessionId,
     record.playerId,
   );
+  const { fontsLoaded } = useAppFonts();
+  const {
+    viewRef: shareViewRef,
+    status: shareStatus,
+    share,
+  } = useShareResult();
   const [playPending, setPlayPending] = useState(false);
+
+  const sharePending =
+    shareStatus === 'capturing' ||
+    shareStatus === 'sharing' ||
+    shareStatus === 'saving';
 
   const handlePlayAgain = useCallback(async () => {
     if (playPending) return;
@@ -272,7 +287,24 @@ export default function ResultScreen({ record }: ResultScreenProps) {
             </Card>
           )}
 
-          {/* TODO(phase 6): share card */}
+          <View className="items-center gap-3">
+            <Text variant="display-md" color="primary">
+              SHARE RECORD
+            </Text>
+            <Button
+              title={
+                sharePending
+                  ? 'LOADING...'
+                  : !fontsLoaded
+                    ? 'LOADING FONTS...'
+                    : 'SHARE IMAGE'
+              }
+              onPress={share}
+              disabled={sharePending || !fontsLoaded}
+              fullWidth
+            />
+          </View>
+
           {/* TODO(phase 11): report button */}
 
           <View className="mt-auto pt-4">
@@ -285,6 +317,16 @@ export default function ResultScreen({ record }: ResultScreenProps) {
           </View>
         </View>
       </ScrollView>
+
+      {result && (
+        <ShareCard
+          ref={shareViewRef}
+          result={result}
+          category={record.category}
+          rank={rank}
+          webUrl={env.webUrl}
+        />
+      )}
     </Screen>
   );
 }

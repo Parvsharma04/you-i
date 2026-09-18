@@ -51,6 +51,17 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
         imageWidth: 76,
       },
     ],
+    'expo-sharing',
+    [
+      'expo-media-library',
+      {
+        photosPermission:
+          'Allow You & I to save your result image to your photo library.',
+        savePhotosPermission:
+          'Allow You & I to save your result image to your photo library.',
+        isAccessMediaLocationEnabled: true,
+      },
+    ],
   ],
   experiments: {
     typedRoutes: true,
