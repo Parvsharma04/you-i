@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import { ScrollView, TextInput, View } from 'react-native';
 import { useRouter } from 'expo-router';
+
+import { LoadingView } from '@/components/loading-view';
 import Animated, {
   Easing,
   useAnimatedProps,
@@ -156,11 +158,10 @@ export default function ResultScreen({ record }: ResultScreenProps) {
   if (status === 'loading') {
     return (
       <Screen>
-        <View className="flex-1 items-center justify-center">
-          <Text variant="display-md" color="primary">
-            LOADING…
-          </Text>
-        </View>
+        <LoadingView
+          title="LOADING RESULT…"
+          subtitle="Reading the compatibility data."
+        />
       </Screen>
     );
   }
@@ -200,14 +201,10 @@ export default function ResultScreen({ record }: ResultScreenProps) {
   if (status === 'generating' || !result) {
     return (
       <Screen>
-        <View className="flex-1 items-center justify-center gap-4 px-6">
-          <Text variant="display-md" color="primary">
-            ANALYZING…
-          </Text>
-          <Text variant="body" color="muted" className="text-center">
-            CALCULATING VIBES
-          </Text>
-        </View>
+        <LoadingView
+          title="WRITING YOUR RESULT…"
+          subtitle="The AI is comparing your answers. This can take a few seconds."
+        />
       </Screen>
     );
   }
@@ -294,9 +291,9 @@ export default function ResultScreen({ record }: ResultScreenProps) {
             <Button
               title={
                 sharePending
-                  ? 'LOADING...'
+                  ? 'SAVING…'
                   : !fontsLoaded
-                    ? 'LOADING FONTS...'
+                    ? 'LOADING FONTS…'
                     : 'SHARE IMAGE'
               }
               onPress={share}
@@ -309,7 +306,7 @@ export default function ResultScreen({ record }: ResultScreenProps) {
 
           <View className="mt-auto pt-4">
             <Button
-              title={playPending ? 'CREATING...' : 'PLAY AGAIN'}
+              title={playPending ? 'CREATING GAME…' : 'PLAY AGAIN'}
               onPress={handlePlayAgain}
               disabled={playPending}
               fullWidth

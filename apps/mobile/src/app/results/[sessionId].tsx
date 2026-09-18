@@ -3,8 +3,8 @@ import { View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 
 import { ErrorBoundary } from '@/components/error-boundary';
+import { LoadingView } from '@/components/loading-view';
 import { Screen } from '@/components/ui/screen';
-import { Text } from '@/components/ui/text';
 import ResultScreen from '@/features/results/result-screen';
 import { useInterceptBack } from '@/hooks/useInterceptBack';
 import { getSession, type SessionRecord } from '@/lib/storage';
@@ -55,11 +55,10 @@ function ResultsRouteInner() {
   if (!sessionId || checking) {
     return (
       <Screen>
-        <View className="flex-1 items-center justify-center">
-          <Text variant="display-md" color="primary">
-            LOADING…
-          </Text>
-        </View>
+        <LoadingView
+          title="LOADING RESULTS…"
+          subtitle="Finding your saved result."
+        />
       </Screen>
     );
   }

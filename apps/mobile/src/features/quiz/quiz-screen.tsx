@@ -8,6 +8,7 @@ import {
 
 import type { PlayerRole } from '@youandi/shared';
 
+import { LoadingView } from '@/components/loading-view';
 import { Button } from '@/components/ui/button';
 import { Screen } from '@/components/ui/screen';
 import { Text } from '@/components/ui/text';
@@ -67,11 +68,10 @@ export function QuizScreen({ sessionId, playerId, role }: QuizScreenProps) {
         >
           <View className="flex-grow px-6 py-8">
             {isLoading && (
-              <View className="flex-1 items-center justify-center">
-                <Text variant="display-md" color="primary">
-                  LOADING…
-                </Text>
-              </View>
+              <LoadingView
+                title="LOADING QUESTIONS…"
+                subtitle="Getting this round ready."
+              />
             )}
 
             {!isLoading && error && (
@@ -136,7 +136,7 @@ export function QuizScreen({ sessionId, playerId, role }: QuizScreenProps) {
 
                 <View className="mt-auto pt-4">
                   <Button
-                    title={isSubmitting ? 'LOADING...' : submitLabel}
+                    title={isSubmitting ? 'SAVING…' : submitLabel}
                     onPress={submitCurrent}
                     disabled={!canSubmit}
                     fullWidth

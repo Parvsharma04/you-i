@@ -364,7 +364,10 @@ function LobbyScreen() {
           {status === 'loading' && (
             <View className="items-center gap-4">
               <Text variant="display-md" color="primary">
-                LOADING…
+                LOADING GAME…
+              </Text>
+              <Text variant="body" color="secondary" className="text-center">
+                Fetching your session.
               </Text>
             </View>
           )}

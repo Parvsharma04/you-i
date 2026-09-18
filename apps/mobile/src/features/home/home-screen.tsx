@@ -209,7 +209,7 @@ export default function HomeScreen() {
             <Button
               title={
                 isPending
-                  ? 'CREATING...'
+                  ? 'CREATING GAME…'
                   : error?.canRetry
                     ? 'TRY AGAIN'
                     : 'START GAME'
