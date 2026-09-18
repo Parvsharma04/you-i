@@ -6,9 +6,9 @@ import type { ConfigContext, ExpoConfig } from 'expo/config';
  * no extra setup.
  */
 const APP_ENV = process.env.APP_ENV ?? 'development';
-const API_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:4000';
+const API_URL = process.env.EXPO_PUBLIC_API_URL ?? 'https://you-i.onrender.com';
 const WS_URL = process.env.EXPO_PUBLIC_WS_URL ?? API_URL;
-const WEB_URL = process.env.EXPO_PUBLIC_WEB_URL ?? 'http://localhost:3000';
+const WEB_URL = process.env.EXPO_PUBLIC_WEB_URL ?? 'https://you-i.onrender.com';
 const BUNDLE_IDENTIFIER_SUFFIX = APP_ENV === 'production' ? '' : `.${APP_ENV}`;
 
 export default ({ config }: ConfigContext): ExpoConfig => ({

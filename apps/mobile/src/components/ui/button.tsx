@@ -20,6 +20,7 @@ export type ButtonProps = {
   disabled?: boolean;
   variant?: 'primary';
   className?: string;
+  fullWidth?: boolean;
 };
 
 /**
@@ -36,6 +37,7 @@ export function Button({
   onPress,
   disabled = false,
   className,
+  fullWidth = false,
 }: ButtonProps) {
   const pressed = useSharedValue(0);
 
@@ -57,7 +59,7 @@ export function Button({
   }, [disabled, pressed]);
 
   return (
-    <View className="relative self-start">
+    <View className={cx('relative', fullWidth ? 'w-full' : 'self-start')}>
       <View
         pointerEvents="none"
         className="absolute inset-0 translate-x-1 translate-y-1 bg-border-color"
@@ -73,6 +75,7 @@ export function Button({
         className={cx(
           'min-h-11 min-w-11 flex-row items-center justify-center border-3 border-border-color px-6 py-3',
           disabled ? 'bg-[#ffb6c1]' : 'bg-accent',
+          fullWidth && 'w-full',
           className,
         )}
       >

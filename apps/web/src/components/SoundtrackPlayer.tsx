@@ -258,6 +258,7 @@ export function SoundtrackPlayer() {
       </div>
 
       {/* Embedded visualizer keyframe animations */}
+      {/* @ts-expect-error styled-jsx adds non-standard props Next.js understands */}
       <style jsx global>{`
         @keyframes barHeight1 {
           0%, 100% { height: 4px; }
