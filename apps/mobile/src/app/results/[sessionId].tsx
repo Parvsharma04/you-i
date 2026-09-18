@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 
@@ -6,10 +6,25 @@ import { ErrorBoundary } from '@/components/error-boundary';
 import { Screen } from '@/components/ui/screen';
 import { Text } from '@/components/ui/text';
 import ResultScreen from '@/features/results/result-screen';
+import { useInterceptBack } from '@/hooks/useInterceptBack';
 import { getSession, type SessionRecord } from '@/lib/storage';
 
 function ResultsRouteInner() {
   const router = useRouter();
+
+  // Hardware back / gesture back from results should go home, not back into
+  // the quiz. We use Expo Router's `useNavigation` + `beforeRemove` rather
+  // than `BackHandler` directly.
+  useInterceptBack(
+    useCallback(
+      ({ preventDefault }) => {
+        preventDefault();
+        router.replace('/');
+      },
+      [router],
+    ),
+  );
+
   const rawParams = useLocalSearchParams<{ sessionId: string }>();
   const sessionId = Array.isArray(rawParams.sessionId)
     ? rawParams.sessionId[0]

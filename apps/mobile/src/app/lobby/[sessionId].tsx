@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { BackHandler, ScrollView, Share, View } from 'react-native';
+import { ScrollView, Share, View } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
-import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import {
   type Category,
   type PlayerJoinedPayload,
@@ -14,6 +14,10 @@ import { Card } from '@/components/ui/card';
 import { Screen } from '@/components/ui/screen';
 import { Text } from '@/components/ui/text';
 import { useGameSocket } from '@/hooks/useGameSocket';
+import {
+  useInterceptBack,
+  useLeavingIntentionally,
+} from '@/hooks/useInterceptBack';
 import {
   ApiError,
   NetworkError,
@@ -58,6 +62,7 @@ function LobbyScreen() {
   const sessionId = Array.isArray(rawParams.sessionId)
     ? rawParams.sessionId[0]
     : rawParams.sessionId;
+  const { leavingIntentionallyRef, markLeaving } = useLeavingIntentionally();
 
   const [status, setStatus] = useState<LobbyStatus>('loading');
   const [lobbyError, setLobbyError] = useState<LobbyError | null>(null);
@@ -74,8 +79,9 @@ function LobbyScreen() {
   const navigateToQuiz = useCallback(() => {
     if (!sessionId || navigatingRef.current) return;
     navigatingRef.current = true;
+    markLeaving();
     router.replace(`/quiz/${sessionId}`);
-  }, [router, sessionId]);
+  }, [router, sessionId, markLeaving]);
 
   const joinAsGuest = useCallback(async () => {
     if (!sessionId) return;
@@ -260,21 +266,18 @@ function LobbyScreen() {
     return () => clearInterval(intervalId);
   }, [playerId, socketStatus, sessionId, navigateToQuiz]);
 
-  // Android hardware back leaves the lobby cleanly instead of dropping the
-  // user into a half-joined state.
-  useFocusEffect(
-    useCallback(() => {
-      const onBackPress = () => {
+  // Android hardware back / gesture back leaves the lobby cleanly instead of
+  // dropping the user into a half-joined state. We use Expo Router's
+  // `useNavigation` + `beforeRemove` rather than `BackHandler` directly.
+  useInterceptBack(
+    useCallback(
+      ({ preventDefault }) => {
+        if (leavingIntentionallyRef.current) return;
+        preventDefault();
         router.replace('/');
-        return true;
-      };
-
-      const subscription = BackHandler.addEventListener(
-        'hardwareBackPress',
-        onBackPress,
-      );
-      return () => subscription.remove();
-    }, [router]),
+      },
+      [leavingIntentionallyRef, router],
+    ),
   );
 
   const handleCopy = useCallback(async () => {

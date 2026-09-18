@@ -1,10 +1,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, BackHandler } from 'react-native';
+import { Alert } from 'react-native';
 import * as Haptics from 'expo-haptics';
-import { useFocusEffect, useRouter } from 'expo-router';
+import { useRouter } from 'expo-router';
 import type { SessionStateResponse } from '@youandi/shared';
 
 import { useGameSocket } from '@/hooks/useGameSocket';
+import {
+  useInterceptBack,
+  useLeavingIntentionally,
+} from '@/hooks/useInterceptBack';
 import {
   ApiError,
   NetworkError,
@@ -25,6 +29,7 @@ type QuizError = {
 
 export function useQuiz(sessionId: string, playerId: string) {
   const router = useRouter();
+  const { leavingIntentionallyRef, markLeaving } = useLeavingIntentionally();
   const {
     state: gameState,
     status: socketStatus,
@@ -188,9 +193,10 @@ export function useQuiz(sessionId: string, playerId: string) {
       !navigatingRef.current
     ) {
       navigatingRef.current = true;
+      markLeaving();
       router.replace(`/results/${sessionId}`);
     }
-  }, [confirmedComplete, gameState?.partner.complete, router, sessionId]);
+  }, [confirmedComplete, gameState?.partner.complete, router, sessionId, markLeaving]);
 
   // Polling fallback for the waiting state or when the socket is offline.
   useEffect(() => {
@@ -291,10 +297,14 @@ export function useQuiz(sessionId: string, playerId: string) {
     }
   }, [sessionId, playerId]);
 
-  // Android hardware back must confirm instead of abandoning the game.
-  useFocusEffect(
-    useCallback(() => {
-      const onBackPress = () => {
+  // Hardware back / gesture back must confirm instead of abandoning the game.
+  // We use Expo Router's `useNavigation` + `beforeRemove` rather than
+  // `BackHandler` directly.
+  useInterceptBack(
+    useCallback(
+      ({ preventDefault }) => {
+        if (leavingIntentionallyRef.current) return;
+        preventDefault();
         Alert.alert(
           'Leave game?',
           'Your partner is waiting on the other side.',
@@ -307,15 +317,9 @@ export function useQuiz(sessionId: string, playerId: string) {
             },
           ],
         );
-        return true;
-      };
-
-      const subscription = BackHandler.addEventListener(
-        'hardwareBackPress',
-        onBackPress,
-      );
-      return () => subscription.remove();
-    }, [router]),
+      },
+      [leavingIntentionallyRef, router],
+    ),
   );
 
   return {
