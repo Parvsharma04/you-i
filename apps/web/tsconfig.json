@@ -1,5 +1,7 @@
 {
+  "extends": "../../tsconfig.base.json",
   "compilerOptions": {
+    "baseUrl": ".",
     "target": "ES2017",
     "lib": ["dom", "dom.iterable", "esnext"],
     "allowJs": true,
@@ -19,7 +21,9 @@
       }
     ],
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "@youandi/shared": ["../../packages/shared/src"],
+      "@youandi/shared/*": ["../../packages/shared/src/*"]
     }
   },
   "include": [
