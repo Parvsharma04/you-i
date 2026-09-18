@@ -3,6 +3,12 @@ import helmet from 'helmet';
 import { AppModule } from './app.module';
 import { ZodValidationPipe } from './common/zod-validation.pipe';
 import { buildCorsOptions } from './common/cors.config';
+import { validateEnv } from './config/env.validation';
+
+// Fail fast: validate every required env var before Nest (and its Prisma
+// connection) is even constructed, rather than discovering a missing key
+// on the first request.
+const env = validateEnv();
 
 async function bootstrap(): Promise<void> {
   const app = await NestFactory.create(AppModule);
@@ -13,9 +19,8 @@ async function bootstrap(): Promise<void> {
 
   app.useGlobalPipes(new ZodValidationPipe());
 
-  const port = process.env.PORT ?? 3001;
-  await app.listen(port);
-  console.log(`🚀 you&i backend running on http://localhost:${port}`);
+  await app.listen(env.PORT);
+  console.log(`🚀 you&i backend running on http://localhost:${env.PORT}`);
 }
 
 bootstrap();

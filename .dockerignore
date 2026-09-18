@@ -1,0 +1,51 @@
+# .dockerignore for the monorepo root (this is the Docker build context
+# used by apps/api/Dockerfile — see the `docker build -f apps/api/Dockerfile .`
+# instructions there).
+#
+# IMPORTANT: keep every packages/shared/** rule scoped so it can never
+# match packages/shared itself — apps/api's Docker build needs that
+# package's source to compile it. The explicit `!packages/shared/**`
+# re-inclusions below exist specifically to survive edits to the generic
+# patterns above them.
+
+# --- Other apps: not part of the API image, biggest context savings ---
+apps/web
+apps/mobile
+
+# --- VCS / editor / OS cruft ---
+.git
+.gitignore
+.github
+.vscode
+.idea
+*.DS_Store
+
+# --- Dependencies & build output (reinstalled/rebuilt inside the image) ---
+**/node_modules
+**/dist
+**/build
+**/.next
+**/out
+**/coverage
+**/*.tsbuildinfo
+
+# --- Env files & secrets: never bake these into an image layer ---
+.env
+.env.*
+!.env.example
+
+# --- Docs, logs, local dev DB ---
+*.md
+*.log
+**/*.log
+apps/api/prisma/dev.db
+
+# --- Safety net: packages/shared must always survive the rules above ---
+!packages/shared
+!packages/shared/**
+!packages/shared/package.json
+# ...but still skip its own node_modules/build output — those get
+# reinstalled/rebuilt inside the image, same as everywhere else.
+packages/shared/node_modules
+packages/shared/dist
+packages/shared/*.tsbuildinfo
