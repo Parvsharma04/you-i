@@ -1,0 +1,24 @@
+{
+  "extends": ["expo/tsconfig.base", "../../tsconfig.base.json"],
+  "compilerOptions": {
+    "strict": true,
+    // typescript-eslint/expo ship TS 6, which deprecates `baseUrl` (still
+    // set by the shared ../../tsconfig.base.json for the TS 5.x apps).
+    "ignoreDeprecations": "6.0",
+    // Re-anchor baseUrl here: inherited from ../../tsconfig.base.json it
+    // would resolve relative to the repo root, breaking the "@/*" alias.
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./src/*"],
+      "@/assets/*": ["./assets/*"],
+      "@youandi/shared": ["../../packages/shared/src"],
+      "@youandi/shared/*": ["../../packages/shared/src/*"]
+    }
+  },
+  "include": [
+    "**/*.ts",
+    "**/*.tsx",
+    ".expo/types/**/*.ts",
+    "expo-env.d.ts"
+  ]
+}

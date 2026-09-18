@@ -1,3 +1,12 @@
 packages:
   - "apps/*"
   - "packages/*"
+
+# apps/mobile's metro.config.js sets resolver.disableHierarchicalLookup: true
+# for its pnpm monorepo config. That flag stops Metro from walking up through
+# nested node_modules, which pnpm's default isolated linker relies on for
+# transitive deps (e.g. semver inside react-native-reanimated's own
+# node_modules) — causing "Unable to resolve module" errors. Hoisted linking
+# flattens node_modules so those deps resolve without hierarchical lookup.
+# See https://docs.expo.dev/guides/monorepos/#package-managers-with-isolated-dependencies
+nodeLinker: hoisted
