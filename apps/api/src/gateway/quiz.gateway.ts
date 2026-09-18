@@ -8,6 +8,17 @@ import {
   OnGatewayDisconnect,
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
+import type {
+  ClientToServerEvents,
+  JoinRoomPayload,
+  QuizCompletePayload,
+  ResultsReadyPayload,
+  ServerToClientEvents,
+  SubmitAnswerSocketPayload,
+} from '@youandi/shared';
+
+type QuizServer = Server<ClientToServerEvents, ServerToClientEvents>;
+type QuizSocket = Socket<ClientToServerEvents, ServerToClientEvents>;
 
 @WebSocketGateway({
   cors: {
@@ -17,20 +28,20 @@ import { Server, Socket } from 'socket.io';
 })
 export class QuizGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer()
-  server!: Server;
+  server!: QuizServer;
 
-  handleConnection(client: Socket): void {
+  handleConnection(client: QuizSocket): void {
     console.log(`Client connected: ${client.id}`);
   }
 
-  handleDisconnect(client: Socket): void {
+  handleDisconnect(client: QuizSocket): void {
     console.log(`Client disconnected: ${client.id}`);
   }
 
   @SubscribeMessage('joinRoom')
   handleJoinRoom(
-    @ConnectedSocket() client: Socket,
-    @MessageBody() data: { sessionId: string; playerId: string },
+    @ConnectedSocket() client: QuizSocket,
+    @MessageBody() data: JoinRoomPayload,
   ): void {
     client.join(data.sessionId);
     console.log(`Player ${data.playerId} joined room ${data.sessionId}`);
@@ -43,14 +54,8 @@ export class QuizGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
   @SubscribeMessage('submitAnswer')
   handleSubmitAnswer(
-    @ConnectedSocket() client: Socket,
-    @MessageBody()
-    data: {
-      sessionId: string;
-      playerId: string;
-      questionId: number;
-      answerIndex: number;
-    },
+    @ConnectedSocket() client: QuizSocket,
+    @MessageBody() data: SubmitAnswerSocketPayload,
   ): void {
     // Notify others that an answer was submitted
     client.to(data.sessionId).emit('answerSubmitted', {
@@ -62,16 +67,17 @@ export class QuizGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
   @SubscribeMessage('quizComplete')
   handleQuizComplete(
-    @ConnectedSocket() client: Socket,
-    @MessageBody() data: { sessionId: string; playerId: string },
+    @ConnectedSocket() client: QuizSocket,
+    @MessageBody() data: QuizCompletePayload,
   ): void {
     client.to(data.sessionId).emit('playerComplete', {
       playerId: data.playerId,
     });
   }
 
-  // Server-side method to emit results ready
-  emitResultsReady(sessionId: string, results: unknown): void {
+  // Server-side method to emit results ready. Never invoked anywhere in
+  // apps/api today — see MIGRATION-AUDIT.md §6 DRIFT #1.
+  emitResultsReady(sessionId: string, results: ResultsReadyPayload): void {
     this.server.to(sessionId).emit('resultsReady', results);
   }
 }

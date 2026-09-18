@@ -1,17 +1,11 @@
-import { IsString, IsInt, IsIn, Min, Max } from 'class-validator';
+import {
+  createSessionRequestSchema,
+  joinSessionRequestSchema,
+} from '@youandi/shared';
+import { createZodDto } from '../common/create-zod-dto';
 
-export class CreateSessionDto {
-  @IsString()
-  @IsIn(['love', 'friendship', 'deep_talk', 'fun', 'spicy', 'fantasy', 'interests'])
-  category!: string;
+export class CreateSessionDto extends createZodDto(
+  createSessionRequestSchema,
+) {}
 
-  @IsInt()
-  @Min(5)
-  @Max(20)
-  questionCount!: number;
-}
-
-export class JoinSessionDto {
-  @IsString()
-  sessionId!: string;
-}
+export class JoinSessionDto extends createZodDto(joinSessionRequestSchema) {}

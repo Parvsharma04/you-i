@@ -1,12 +1,13 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { SubmitAnswerDto } from './answer.dto';
+import { Answer, AnswerCountResponse, AnswersResponse } from '@youandi/shared';
 
 @Injectable()
 export class AnswerService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async submit(dto: SubmitAnswerDto) {
+  async submit(dto: SubmitAnswerDto): Promise<Answer> {
     const session = await this.prisma.session.findUnique({
       where: { id: dto.sessionId },
     });
@@ -15,7 +16,10 @@ export class AnswerService {
       throw new BadRequestException('Session not found');
     }
 
-    if (dto.playerId !== session.player1Id && dto.playerId !== session.player2Id) {
+    if (
+      dto.playerId !== session.player1Id &&
+      dto.playerId !== session.player2Id
+    ) {
       throw new BadRequestException('Player does not belong to this session');
     }
 
@@ -40,14 +44,14 @@ export class AnswerService {
     return answer;
   }
 
-  async getAnswersForSession(sessionId: string) {
+  async getAnswersForSession(sessionId: string): Promise<AnswersResponse> {
     return this.prisma.answer.findMany({
       where: { sessionId },
       orderBy: { questionId: 'asc' },
     });
   }
 
-  async getAnswerCount(sessionId: string) {
+  async getAnswerCount(sessionId: string): Promise<AnswerCountResponse> {
     const session = await this.prisma.session.findUnique({
       where: { id: sessionId },
     });
@@ -70,7 +74,8 @@ export class AnswerService {
       player1: player1Answers,
       player2: player2Answers,
       totalExpected,
-      bothComplete: player1Answers >= totalExpected && player2Answers >= totalExpected,
+      bothComplete:
+        player1Answers >= totalExpected && player2Answers >= totalExpected,
     };
   }
 }

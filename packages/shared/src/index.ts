@@ -1,3 +1,6 @@
-// Shared types, zod schemas, and socket event contracts for apps/api, apps/web,
-// and apps/mobile. Empty scaffold — populate as the mobile migration proceeds.
-export {};
+// Public surface of @youandi/shared: the single source of truth for the
+// API contract, consumed by apps/api, apps/web, and apps/mobile.
+
+export * from './constants';
+export * from './schemas';
+export * from './socket';

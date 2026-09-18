@@ -1,13 +1,16 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { LlmService } from '../llm/llm.service';
+import { GetResultResponse, Result } from '@youandi/shared';
 
 @Injectable()
 export class ResultService {
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly llmService: LlmService,
+  ) {}
 
-  constructor(private readonly prisma: PrismaService, private readonly llmService: LlmService) {}
-
-  async generate(sessionId: string) {
+  async generate(sessionId: string): Promise<Result> {
     // Check if result already exists
     const existing = await this.prisma.result.findUnique({
       where: { sessionId },
@@ -30,7 +33,9 @@ export class ResultService {
     }
 
     if (!session.player2Id) {
-      throw new BadRequestException('Session is not complete — Player 2 has not joined');
+      throw new BadRequestException(
+        'Session is not complete — Player 2 has not joined',
+      );
     }
 
     // Get all answers
@@ -186,7 +191,7 @@ IMPORTANT: Respond ONLY with valid JSON in this exact format, no other text:
     }
   }
 
-  async getResult(sessionId: string) {
+  async getResult(sessionId: string): Promise<GetResultResponse> {
     const result = await this.prisma.result.findUnique({
       where: { sessionId },
     });

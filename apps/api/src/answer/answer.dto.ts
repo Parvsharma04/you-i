@@ -1,15 +1,4 @@
-import { IsString, IsInt } from 'class-validator';
+import { submitAnswerRequestSchema } from '@youandi/shared';
+import { createZodDto } from '../common/create-zod-dto';
 
-export class SubmitAnswerDto {
-  @IsString()
-  sessionId!: string;
-
-  @IsInt()
-  questionId!: number;
-
-  @IsString()
-  playerId!: string;
-
-  @IsString()
-  answer!: string;
-}
+export class SubmitAnswerDto extends createZodDto(submitAnswerRequestSchema) {}
