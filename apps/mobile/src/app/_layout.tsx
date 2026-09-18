@@ -7,6 +7,7 @@ import { useColorScheme } from 'react-native';
 import { AnimatedSplashOverlay } from '@/components/animated-icon';
 import { ConnectivityBanner } from '@/components/connectivity-banner';
 import { ErrorBoundary } from '@/components/error-boundary';
+import { PrivacyOverlay } from '@/components/privacy-overlay';
 import { useAppFonts } from '@/lib/fonts';
 
 // Smoke test: confirms @youandi/shared resolves correctly through the
@@ -28,6 +29,7 @@ export default function RootLayout() {
   return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
       <AnimatedSplashOverlay />
+      <PrivacyOverlay />
       <ConnectivityBanner />
       <ErrorBoundary context={{ route: 'root' }}>
         <Stack screenOptions={{ headerShown: false }} />

@@ -17,6 +17,7 @@ let appStateRefCount = 0;
 let appStateSubscription: ReturnType<typeof AppState.addEventListener> | null =
   null;
 let activeConsumerCount = 0;
+let rehydratePromise: Promise<void> | null = null;
 
 function clearBackgroundTimer(): void {
   if (backgroundTimer) {
@@ -70,20 +71,30 @@ export async function rehydrate(): Promise<void> {
   const credentials = state.getCredentials();
   if (!credentials) return;
 
-  try {
-    const nextState = await getSessionState(
-      credentials.sessionId,
-      credentials.playerId,
-    );
-    state.setLastState(nextState);
-    state.setLastError(null);
-    state.notifyStateSubscribers(nextState);
-  } catch (error) {
-    const normalized =
-      error instanceof Error ? error : new Error(String(error));
-    state.setLastError(normalized);
-    state.notifyErrorSubscribers(normalized);
-  }
+  // Deduplicate concurrent rehydrates so a reconnect + manual refresh +
+  // foreground event don't trigger a fetch storm.
+  if (rehydratePromise) return rehydratePromise;
+
+  rehydratePromise = (async () => {
+    try {
+      const nextState = await getSessionState(
+        credentials.sessionId,
+        credentials.playerId,
+      );
+      state.setLastState(nextState);
+      state.setLastError(null);
+      state.notifyStateSubscribers(nextState);
+    } catch (error) {
+      const normalized =
+        error instanceof Error ? error : new Error(String(error));
+      state.setLastError(normalized);
+      state.notifyErrorSubscribers(normalized);
+    } finally {
+      rehydratePromise = null;
+    }
+  })();
+
+  return rehydratePromise;
 }
 
 function handleAppStateChange(next: AppStateStatus): void {
