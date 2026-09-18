@@ -5,6 +5,7 @@ import { CATEGORIES } from '@youandi/shared';
 import { useColorScheme } from 'react-native';
 
 import { AnimatedSplashOverlay } from '@/components/animated-icon';
+import { ConnectivityBanner } from '@/components/connectivity-banner';
 import { useAppFonts } from '@/lib/fonts';
 
 // Smoke test: confirms @youandi/shared resolves correctly through the
@@ -26,6 +27,7 @@ export default function RootLayout() {
   return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
       <AnimatedSplashOverlay />
+      <ConnectivityBanner />
       <Stack screenOptions={{ headerShown: false }} />
     </ThemeProvider>
   );
