@@ -68,8 +68,9 @@ export class QuizGateway implements OnGatewayConnection, OnGatewayDisconnect {
     await client.join(data.sessionId);
     console.log(`Player ${data.playerId} joined room ${data.sessionId}`);
 
-    // Notify others in the room
-    client.to(data.sessionId).emit('playerJoined', {
+    // Notify everyone in the room (including the joining player) so both
+    // host and guest can react to the same event and navigate together.
+    this.server.to(data.sessionId).emit('playerJoined', {
       playerId: data.playerId,
     });
   }

@@ -8,6 +8,7 @@ import type { ConfigContext, ExpoConfig } from 'expo/config';
 const APP_ENV = process.env.APP_ENV ?? 'development';
 const API_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:4000';
 const WS_URL = process.env.EXPO_PUBLIC_WS_URL ?? API_URL;
+const WEB_URL = process.env.EXPO_PUBLIC_WEB_URL ?? 'http://localhost:3000';
 const BUNDLE_IDENTIFIER_SUFFIX = APP_ENV === 'production' ? '' : `.${APP_ENV}`;
 
 export default ({ config }: ConfigContext): ExpoConfig => ({
@@ -59,6 +60,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     ...config.extra,
     apiUrl: API_URL,
     wsUrl: WS_URL,
+    webUrl: WEB_URL,
     appEnv: APP_ENV,
   },
 });
