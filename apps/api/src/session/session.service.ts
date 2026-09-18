@@ -2,6 +2,7 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { v4 as uuidv4 } from 'uuid';
@@ -11,9 +12,12 @@ import {
   Category,
   CreateSessionResponse,
   JoinSessionResponse,
+  PlayerRole,
   QUESTION_TYPES,
   QuestionType,
+  Result,
   SESSION_STATUSES,
+  SessionStateResponse,
 } from '@youandi/shared';
 
 @Injectable()
@@ -444,5 +448,101 @@ IMPORTANT: Respond ONLY with valid JSON in this exact format, no other text:
     }
 
     return session;
+  }
+
+  async getState(
+    sessionId: string,
+    playerId: string,
+  ): Promise<SessionStateResponse> {
+    const session = await this.prisma.session.findUnique({
+      where: { id: sessionId },
+    });
+
+    if (!session) {
+      throw new NotFoundException('Session not found');
+    }
+
+    let role: PlayerRole;
+    if (playerId === session.player1Id) {
+      role = 'player1';
+    } else if (session.player2Id && playerId === session.player2Id) {
+      role = 'player2';
+    } else {
+      throw new ForbiddenException('Player does not belong to this session');
+    }
+
+    const partnerId =
+      role === 'player1' ? session.player2Id : session.player1Id;
+
+    // One query per table — questions, answers (question/player ids only,
+    // never the answer values) and the result — no N+1.
+    const [questions, answers, result] = await Promise.all([
+      this.prisma.question.findMany({
+        where: { sessionId },
+        orderBy: { id: 'asc' },
+        select: { id: true, text: true, type: true, options: true },
+      }),
+      this.prisma.answer.findMany({
+        where: { sessionId },
+        select: { questionId: true, playerId: true },
+      }),
+      this.prisma.result.findUnique({ where: { sessionId } }),
+    ]);
+
+    const youAnsweredQuestionIds = answers
+      .filter((a) => a.playerId === playerId)
+      .map((a) => a.questionId);
+
+    const partnerAnsweredQuestionIds = partnerId
+      ? answers.filter((a) => a.playerId === partnerId).map((a) => a.questionId)
+      : [];
+
+    const partnerComplete =
+      !!partnerId && partnerAnsweredQuestionIds.length >= session.questionCount;
+
+    const parsedResult: Result | null = result
+      ? {
+          score: result.score,
+          summary: result.summary,
+          strengths: JSON.parse(result.strengths) as string[],
+          differences: JSON.parse(result.differences) as string[],
+        }
+      : null;
+
+    const youComplete = youAnsweredQuestionIds.length >= session.questionCount;
+
+    return {
+      session: {
+        id: session.id,
+        category: session.category as Category,
+        questionCount: session.questionCount,
+        status: session.status as SessionStateResponse['session']['status'],
+        createdAt: session.createdAt.toISOString(),
+      },
+      you: {
+        playerId,
+        role,
+        answeredQuestionIds: youAnsweredQuestionIds,
+      },
+      partner: {
+        joined: !!partnerId,
+        answeredQuestionIds: partnerAnsweredQuestionIds,
+        complete: partnerComplete,
+      },
+      questions: questions.map((q) => ({
+        id: q.id,
+        text: q.text,
+        type: q.type as QuestionType,
+        options: q.options ? (JSON.parse(q.options) as string[]) : null,
+      })),
+      result: {
+        status: parsedResult
+          ? 'ready'
+          : youComplete && partnerComplete
+            ? 'pending'
+            : 'none',
+        data: parsedResult,
+      },
+    };
   }
 }

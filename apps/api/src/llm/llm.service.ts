@@ -38,7 +38,7 @@ export class LlmService {
 
   constructor() {
     const providerType = process.env.LLM_PROVIDER || 'gemini';
-    console.log("Provider Type: ", providerType)
+    console.log('Provider Type: ', providerType);
     if (providerType === 'groq') {
       this.provider = new GroqProvider(process.env.GROQ_API_KEY ?? '');
     } else {

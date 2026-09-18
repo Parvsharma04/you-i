@@ -128,3 +128,39 @@ export type GenerateResultResponse = z.infer<
 
 export const getResultResponseSchema = resultSchema.nullable();
 export type GetResultResponse = z.infer<typeof getResultResponseSchema>;
+
+// ── GET /session/:sessionId/state ────────────────────────────────────────
+// Full rehydration payload for a client reconnecting/foregrounding: replaces
+// separate session + questions + answers + result calls with one round trip.
+
+export const playerRoleSchema = z.enum(['player1', 'player2']);
+export type PlayerRole = z.infer<typeof playerRoleSchema>;
+
+export const resultStatusSchema = z.enum(['none', 'pending', 'ready']);
+export type ResultStatus = z.infer<typeof resultStatusSchema>;
+
+export const sessionStateResponseSchema = z.object({
+  session: z.object({
+    id: z.string(),
+    category: categorySchema,
+    questionCount: z.number().int(),
+    status: sessionStatusSchema,
+    createdAt: z.string(),
+  }),
+  you: z.object({
+    playerId: z.string(),
+    role: playerRoleSchema,
+    answeredQuestionIds: z.array(z.number().int()),
+  }),
+  partner: z.object({
+    joined: z.boolean(),
+    answeredQuestionIds: z.array(z.number().int()),
+    complete: z.boolean(),
+  }),
+  questions: z.array(questionSchema.omit({ category: true })),
+  result: z.object({
+    status: resultStatusSchema,
+    data: resultSchema.nullable(),
+  }),
+});
+export type SessionStateResponse = z.infer<typeof sessionStateResponseSchema>;
