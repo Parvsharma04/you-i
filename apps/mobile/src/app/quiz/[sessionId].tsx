@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 
+import { ErrorBoundary } from '@/components/error-boundary';
 import { Screen } from '@/components/ui/screen';
 import { Text } from '@/components/ui/text';
 import { QuizScreen } from '@/features/quiz/quiz-screen';
 import { getSession, type SessionRecord } from '@/lib/storage';
 
-export default function QuizRoute() {
+function QuizRouteInner() {
   const router = useRouter();
   const rawParams = useLocalSearchParams<{ sessionId: string }>();
   const sessionId = Array.isArray(rawParams.sessionId)
@@ -55,5 +56,13 @@ export default function QuizRoute() {
       playerId={record.playerId}
       role={record.role}
     />
+  );
+}
+
+export default function QuizRoute() {
+  return (
+    <ErrorBoundary context={{ route: 'quiz' }}>
+      <QuizRouteInner />
+    </ErrorBoundary>
   );
 }

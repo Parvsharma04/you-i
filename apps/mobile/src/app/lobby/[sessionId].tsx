@@ -8,6 +8,7 @@ import {
   SESSION_STATUSES,
 } from '@youandi/shared';
 
+import { ErrorBoundary } from '@/components/error-boundary';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Screen } from '@/components/ui/screen';
@@ -51,7 +52,7 @@ function buildShareLink(sessionId: string): string {
   return `${base}/lobby/${sessionId}`;
 }
 
-export default function LobbyScreen() {
+function LobbyScreen() {
   const router = useRouter();
   const rawParams = useLocalSearchParams<{ sessionId: string }>();
   const sessionId = Array.isArray(rawParams.sessionId)
@@ -461,5 +462,13 @@ export default function LobbyScreen() {
         </View>
       </ScrollView>
     </Screen>
+  );
+}
+
+export default function LobbyRoute() {
+  return (
+    <ErrorBoundary context={{ route: 'lobby' }}>
+      <LobbyScreen />
+    </ErrorBoundary>
   );
 }
