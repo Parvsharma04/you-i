@@ -46,7 +46,11 @@ export default function ExploreScreen() {
           </ThemedText>
 
           <ExternalLink href="https://docs.expo.dev" asChild>
-            <Pressable style={({ pressed }) => pressed && styles.pressed}>
+            <Pressable
+              accessibilityRole="link"
+              accessibilityLabel="Open Expo documentation"
+              style={({ pressed }) => pressed && styles.pressed}
+            >
               <ThemedView type="backgroundElement" style={styles.linkButton}>
                 <ThemedText type="link">Expo documentation</ThemedText>
                 <SymbolView

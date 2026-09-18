@@ -1,7 +1,13 @@
 import { useCallback } from 'react';
-import { Pressable, View, type GestureResponderEvent } from 'react-native';
+import {
+  Pressable,
+  View,
+  type AccessibilityProps,
+  type GestureResponderEvent,
+} from 'react-native';
 import Animated, {
   useAnimatedStyle,
+  useReducedMotion,
   useSharedValue,
   withTiming,
 } from 'react-native-reanimated';
@@ -14,7 +20,7 @@ const OFFSET = 4; // matches `shadow-retro` (4px 4px 0px)
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
-export type ButtonProps = {
+export type ButtonProps = AccessibilityProps & {
   title: string;
   onPress?: (event: GestureResponderEvent) => void;
   disabled?: boolean;
@@ -38,8 +44,11 @@ export function Button({
   disabled = false,
   className,
   fullWidth = false,
+  accessibilityLabel,
+  ...accessibilityProps
 }: ButtonProps) {
   const pressed = useSharedValue(0);
+  const reduceMotion = useReducedMotion();
 
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [
@@ -49,14 +58,14 @@ export function Button({
   }));
 
   const handlePressIn = useCallback(() => {
-    if (disabled) return;
+    if (disabled || reduceMotion) return;
     pressed.value = withTiming(1, { duration: 80 });
-  }, [disabled, pressed]);
+  }, [disabled, reduceMotion, pressed]);
 
   const handlePressOut = useCallback(() => {
-    if (disabled) return;
+    if (disabled || reduceMotion) return;
     pressed.value = withTiming(0, { duration: 120 });
-  }, [disabled, pressed]);
+  }, [disabled, reduceMotion, pressed]);
 
   return (
     <View className={cx('relative', fullWidth ? 'w-full' : 'self-start')}>
@@ -67,6 +76,7 @@ export function Button({
       <AnimatedPressable
         accessibilityRole="button"
         accessibilityState={{ disabled }}
+        accessibilityLabel={accessibilityLabel ?? title}
         disabled={disabled}
         onPress={onPress}
         onPressIn={handlePressIn}
@@ -78,6 +88,7 @@ export function Button({
           fullWidth && 'w-full',
           className,
         )}
+        {...accessibilityProps}
       >
         <Text
           variant="display-lg"

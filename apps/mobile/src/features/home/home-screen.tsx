@@ -133,7 +133,9 @@ export default function HomeScreen() {
           {activeSession && (
             <Pressable
               onPress={handleRejoin}
-              className="mb-6 border-2 border-border-color bg-bg-card p-4"
+              accessibilityRole="button"
+              accessibilityLabel="Rejoin game in progress"
+              className="mb-6 min-h-11 border-2 border-border-color bg-bg-card p-4"
               style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}
             >
               <Text variant="body-sm" color="secondary">

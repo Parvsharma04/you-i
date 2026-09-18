@@ -1,7 +1,7 @@
 import { SymbolView } from 'expo-symbols';
 import { PropsWithChildren, useState } from 'react';
-import { Pressable, StyleSheet } from 'react-native';
-import Animated, { FadeIn } from 'react-native-reanimated';
+import { Pressable, StyleSheet, View } from 'react-native';
+import Animated, { FadeIn, useReducedMotion } from 'react-native-reanimated';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -14,10 +14,20 @@ export function Collapsible({
 }: PropsWithChildren & { title: string }) {
   const [isOpen, setIsOpen] = useState(false);
   const theme = useTheme();
+  const reduceMotion = useReducedMotion();
+
+  const content = (
+    <ThemedView type="backgroundElement" style={styles.content}>
+      {children}
+    </ThemedView>
+  );
 
   return (
     <ThemedView>
       <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={`${title}. ${isOpen ? 'Expanded' : 'Collapsed'}. Tap to toggle.`}
+        accessibilityState={{ expanded: isOpen }}
         style={({ pressed }) => [
           styles.heading,
           pressed && styles.pressedHeading,
@@ -40,13 +50,12 @@ export function Collapsible({
 
         <ThemedText type="small">{title}</ThemedText>
       </Pressable>
-      {isOpen && (
-        <Animated.View entering={FadeIn.duration(200)}>
-          <ThemedView type="backgroundElement" style={styles.content}>
-            {children}
-          </ThemedView>
-        </Animated.View>
-      )}
+      {isOpen &&
+        (reduceMotion ? (
+          content
+        ) : (
+          <Animated.View entering={FadeIn.duration(200)}>{content}</Animated.View>
+        ))}
     </ThemedView>
   );
 }
@@ -56,6 +65,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.two,
+    minHeight: 44,
   },
   pressedHeading: {
     opacity: 0.7,
