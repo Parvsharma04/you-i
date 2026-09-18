@@ -1,4 +1,5 @@
 const { getDefaultConfig } = require('expo/metro-config');
+const { withNativeWind } = require('nativewind/metro');
 const path = require('path');
 
 const projectRoot = __dirname;
@@ -31,4 +32,6 @@ config.resolver.disableHierarchicalLookup = true;
 // opaque files outside the project.
 config.resolver.unstable_enableSymlinks = true;
 
-module.exports = config;
+// Must wrap last: withNativeWind reads `input` to compile global.css into
+// the atomic style registry NativeWind's Babel/JSX transform references.
+module.exports = withNativeWind(config, { input: './global.css' });

@@ -1,3 +1,5 @@
+import '../../global.css';
+
 import { CATEGORIES } from '@youandi/shared';
 
 // Smoke test: confirms @youandi/shared resolves correctly through the

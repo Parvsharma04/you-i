@@ -14,14 +14,18 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@expo-google-fonts/space-mono": "^0.4.2",
+    "@expo-google-fonts/vt323": "^0.4.1",
     "@expo/ui": "~57.0.19",
     "@youandi/shared": "workspace:*",
     "expo": "~57.0.24",
+    "expo-blur": "~57.0.3",
     "expo-constants": "~57.0.19",
     "expo-device": "~57.0.2",
     "expo-font": "~57.0.4",
     "expo-glass-effect": "~57.0.3",
     "expo-image": "~57.0.5",
+    "expo-linear-gradient": "~57.0.2",
     "expo-linking": "~57.0.10",
     "expo-router": "~57.0.22",
     "expo-splash-screen": "~57.0.9",
@@ -29,6 +33,7 @@
     "expo-symbols": "~57.0.3",
     "expo-system-ui": "~57.0.4",
     "expo-web-browser": "~57.0.3",
+    "nativewind": "^4.2.7",
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "react-native": "0.86.3",
@@ -48,6 +53,7 @@
     "eslint-plugin-react-hooks": "^5.1.0",
     "globals": "^16.0.0",
     "prettier": "^3.4.2",
+    "tailwindcss": "^3.4.19",
     "typescript": "~6.0.3",
     "typescript-eslint": "^8.20.0"
   }
