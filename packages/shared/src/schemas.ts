@@ -121,12 +121,23 @@ export const resultSchema = z.object({
 });
 export type Result = z.infer<typeof resultSchema>;
 
-export const generateResultResponseSchema = resultSchema;
+export const resultStatusSchema = z.enum(['none', 'pending', 'ready']);
+export type ResultStatus = z.infer<typeof resultStatusSchema>;
+
+// Shared shape for both endpoints: generation is async, so both the
+// "kick off generation" and "poll for it" calls report the same tri-state.
+export const resultStatusResponseSchema = z.object({
+  status: resultStatusSchema,
+  data: resultSchema.nullable(),
+});
+export type ResultStatusResponse = z.infer<typeof resultStatusResponseSchema>;
+
+export const generateResultResponseSchema = resultStatusResponseSchema;
 export type GenerateResultResponse = z.infer<
   typeof generateResultResponseSchema
 >;
 
-export const getResultResponseSchema = resultSchema.nullable();
+export const getResultResponseSchema = resultStatusResponseSchema;
 export type GetResultResponse = z.infer<typeof getResultResponseSchema>;
 
 // ── GET /session/:sessionId/state ────────────────────────────────────────
@@ -135,9 +146,6 @@ export type GetResultResponse = z.infer<typeof getResultResponseSchema>;
 
 export const playerRoleSchema = z.enum(['player1', 'player2']);
 export type PlayerRole = z.infer<typeof playerRoleSchema>;
-
-export const resultStatusSchema = z.enum(['none', 'pending', 'ready']);
-export type ResultStatus = z.infer<typeof resultStatusSchema>;
 
 export const sessionStateResponseSchema = z.object({
   session: z.object({

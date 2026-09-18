@@ -35,15 +35,22 @@ export class GroqProvider implements LLMProvider {
 @Injectable()
 export class LlmService {
   private provider: LLMProvider;
+  private providerName: string;
 
   constructor() {
     const providerType = process.env.LLM_PROVIDER || 'gemini';
     console.log('Provider Type: ', providerType);
     if (providerType === 'groq') {
       this.provider = new GroqProvider(process.env.GROQ_API_KEY ?? '');
+      this.providerName = 'groq';
     } else {
       this.provider = new GeminiProvider(process.env.GEMINI_API_KEY ?? '');
+      this.providerName = 'gemini';
     }
+  }
+
+  getProviderName(): string {
+    return this.providerName;
   }
 
   async generateContent(prompt: string): Promise<string> {
