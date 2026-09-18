@@ -1,102 +1,223 @@
-import * as Device from 'expo-device';
-import { Platform, StyleSheet } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useCallback, useEffect, useState } from 'react';
+import { Pressable, ScrollView, View } from 'react-native';
+import { useRouter } from 'expo-router';
+import * as Haptics from 'expo-haptics';
+import { CATEGORIES, type Category } from '@youandi/shared';
 
-import { AnimatedIcon } from '@/components/animated-icon';
-import { HintRow } from '@/features/home/hint-row';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { WebBadge } from '@/components/web-badge';
-import { BottomTabInset, MaxContentWidth, Spacing } from '@/components/theme';
+import { Button } from '@/components/ui/button';
+import { OptionTile } from '@/components/ui/option-tile';
+import { Screen } from '@/components/ui/screen';
+import { Text } from '@/components/ui/text';
+import { ApiError, NetworkError, TimeoutError, createSession } from '@/lib/api';
+import {
+  getActiveSession,
+  saveSession,
+  type SessionRecord,
+} from '@/lib/storage';
 
-function getDevMenuHint() {
-  if (Platform.OS === 'web') {
-    return <ThemedText type="small">use browser devtools</ThemedText>;
-  }
-  if (Device.isDevice) {
-    return (
-      <ThemedText type="small">
-        shake device or press <ThemedText type="code">m</ThemedText> in terminal
-      </ThemedText>
-    );
-  }
-  const shortcut = Platform.OS === 'android' ? 'cmd+m (or ctrl+m)' : 'cmd+d';
-  return (
-    <ThemedText type="small">
-      press <ThemedText type="code">{shortcut}</ThemedText>
-    </ThemedText>
-  );
+const HOME_CATEGORIES: Category[] = CATEGORIES.slice(0, 5);
+const SPICY_CATEGORY = CATEGORIES[4];
+const COUNT_OPTIONS: number[] = [5, 10, 15, 20];
+
+function formatCategory(category: Category): string {
+  return category
+    .split('_')
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
 }
 
 export default function HomeScreen() {
+  const router = useRouter();
+
+  const [selectedCategory, setSelectedCategory] = useState<Category>(
+    HOME_CATEGORIES[0],
+  );
+  const [selectedCount, setSelectedCount] = useState<number>(10);
+  const [activeSession, setActiveSession] = useState<SessionRecord | null>(
+    null,
+  );
+  const [isPending, setIsPending] = useState(false);
+  const [error, setError] = useState<{
+    message: string;
+    canRetry: boolean;
+  } | null>(null);
+
+  useEffect(() => {
+    let mounted = true;
+    getActiveSession()
+      .then((session) => {
+        if (mounted) setActiveSession(session);
+      })
+      .catch(() => {
+        // Storage read failures are non-fatal; the user can still start a new game.
+      });
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const handleSelectCategory = useCallback((category: Category) => {
+    void Haptics.selectionAsync();
+    if (category === SPICY_CATEGORY) {
+      // TODO(phase 11): show an age-confirmation gate before selecting 'spicy'.
+    }
+    setSelectedCategory(category);
+    setError(null);
+  }, []);
+
+  const handleSelectCount = useCallback((count: number) => {
+    setSelectedCount(count);
+    setError(null);
+  }, []);
+
+  const handleRejoin = useCallback(() => {
+    if (activeSession) {
+      router.push(`/lobby/${activeSession.sessionId}`);
+    }
+  }, [activeSession, router]);
+
+  const handleCreateSession = useCallback(async () => {
+    if (isPending) return;
+
+    setIsPending(true);
+    setError(null);
+
+    try {
+      const { sessionId, player1Id } = await createSession({
+        category: selectedCategory,
+        questionCount: selectedCount,
+      });
+
+      await saveSession({
+        sessionId,
+        playerId: player1Id,
+        role: 'player1',
+        category: selectedCategory,
+        questionCount: selectedCount,
+        savedAt: new Date().toISOString(),
+      });
+
+      router.push(`/lobby/${sessionId}`);
+    } catch (err) {
+      setIsPending(false);
+
+      if (err instanceof NetworkError || err instanceof TimeoutError) {
+        setError({
+          message: "You're offline. Check your connection and try again.",
+          canRetry: true,
+        });
+      } else if (err instanceof ApiError && err.status === 429) {
+        setError({
+          message: 'You are creating games too quickly. Slow down.',
+          canRetry: true,
+        });
+      } else if (err instanceof ApiError && err.status >= 500) {
+        setError({
+          message: 'Something went wrong on our end. Please try again.',
+          canRetry: true,
+        });
+      } else {
+        const message =
+          err instanceof Error
+            ? err.message
+            : 'Could not create session. Please try again.';
+        setError({ message, canRetry: true });
+      }
+    }
+  }, [isPending, selectedCategory, selectedCount, router]);
+
   return (
-    <ThemedView style={styles.container}>
-      <SafeAreaView style={styles.safeArea}>
-        <ThemedView style={styles.heroSection}>
-          <AnimatedIcon />
-          <ThemedText type="title" style={styles.title}>
-            Welcome to&nbsp;Expo
-          </ThemedText>
-        </ThemedView>
+    <Screen>
+      <ScrollView className="flex-1">
+        <View className="flex-grow justify-center px-6 py-8">
+          {activeSession && (
+            <Pressable
+              onPress={handleRejoin}
+              className="mb-6 border-2 border-border-color bg-bg-card p-4"
+              style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}
+            >
+              <Text variant="body-sm" color="secondary">
+                You have a game in progress.
+              </Text>
+              <Text variant="body" bold color="accent">
+                Tap to rejoin →
+              </Text>
+            </Pressable>
+          )}
 
-        <ThemedText type="code" style={styles.code}>
-          get started
-        </ThemedText>
+          <Text
+            variant="display-xl"
+            color="primary"
+            className="mb-2 text-center"
+          >
+            You & I
+          </Text>
+          <Text variant="body" color="secondary" className="mb-8 text-center">
+            Pick a category and question count to start.
+          </Text>
 
-        <ThemedView type="backgroundElement" style={styles.stepContainer}>
-          <HintRow
-            title="Try editing"
-            hint={
-              <ThemedText type="code">
-                src/features/home/home-screen.tsx
-              </ThemedText>
-            }
-          />
-          <HintRow title="Dev tools" hint={getDevMenuHint()} />
-          <HintRow
-            title="Fresh start"
-            hint={<ThemedText type="code">npm run reset-project</ThemedText>}
-          />
-        </ThemedView>
+          <View className="mb-6">
+            <Text
+              variant="body-sm"
+              color="muted"
+              className="mb-3 uppercase tracking-widest"
+            >
+              Category
+            </Text>
+            {HOME_CATEGORIES.map((category) => (
+              <OptionTile
+                key={category}
+                label={formatCategory(category)}
+                selected={selectedCategory === category}
+                disabled={isPending}
+                onPress={() => handleSelectCategory(category)}
+              />
+            ))}
+          </View>
 
-        {Platform.OS === 'web' && <WebBadge />}
-      </SafeAreaView>
-    </ThemedView>
+          <View className="mb-8">
+            <Text
+              variant="body-sm"
+              color="muted"
+              className="mb-3 uppercase tracking-widest"
+            >
+              Questions
+            </Text>
+            <View className="flex-row gap-2">
+              {COUNT_OPTIONS.map((count) => (
+                <View key={count} className="flex-1">
+                  <OptionTile
+                    label={String(count)}
+                    selected={selectedCount === count}
+                    disabled={isPending}
+                    onPress={() => handleSelectCount(count)}
+                  />
+                </View>
+              ))}
+            </View>
+          </View>
+
+          {error && (
+            <Text variant="body-sm" color="accent" className="mb-4 text-center">
+              {error.message}
+            </Text>
+          )}
+
+          <View className="items-center">
+            <Button
+              title={
+                isPending
+                  ? 'CREATING...'
+                  : error?.canRetry
+                    ? 'TRY AGAIN'
+                    : 'START GAME'
+              }
+              onPress={handleCreateSession}
+              disabled={isPending}
+            />
+          </View>
+        </View>
+      </ScrollView>
+    </Screen>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    justifyContent: 'center',
-    flexDirection: 'row',
-  },
-  safeArea: {
-    flex: 1,
-    paddingHorizontal: Spacing.four,
-    alignItems: 'center',
-    gap: Spacing.three,
-    paddingBottom: BottomTabInset + Spacing.three,
-    maxWidth: MaxContentWidth,
-  },
-  heroSection: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    flex: 1,
-    paddingHorizontal: Spacing.four,
-    gap: Spacing.four,
-  },
-  title: {
-    textAlign: 'center',
-  },
-  code: {
-    textTransform: 'uppercase',
-  },
-  stepContainer: {
-    gap: Spacing.three,
-    alignSelf: 'stretch',
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.four,
-    borderRadius: Spacing.four,
-  },
-});
