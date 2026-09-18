@@ -38,6 +38,9 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   android: {
     ...config.android,
     package: `com.youandi.mobile${BUNDLE_IDENTIFIER_SUFFIX}`,
+    // Ensure the layout resizes when the keyboard opens so
+    // KeyboardAvoidingView can keep the submit button visible.
+    softwareKeyboardLayoutMode: 'resize',
     intentFilters: [
       {
         autoVerify: true,

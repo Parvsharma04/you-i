@@ -56,7 +56,7 @@ export function QuizScreen({ sessionId, playerId, role }: QuizScreenProps) {
   return (
     <Screen>
       <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         className="flex-1"
       >
         <ScrollView
