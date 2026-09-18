@@ -21,11 +21,18 @@ export default function ResultsPage({ params }: { params: Promise<{ sessionId: s
   useEffect(() => {
     const loadResults = async () => {
       try {
+        const stored = sessionStorage.getItem(`player_${sessionId}`);
+        const playerId = stored ? (JSON.parse(stored).playerId as string) : null;
+        if (!playerId) {
+          setLoading(false);
+          return;
+        }
+
         // Try to get existing result first
-        let data = await api.getResult(sessionId);
+        let data = await api.getResult(sessionId, playerId);
         if (!data) {
           // Generate new result
-          data = await api.generateResult(sessionId);
+          data = await api.generateResult(sessionId, playerId);
         }
         setResult(data);
         setLoading(false);

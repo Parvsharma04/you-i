@@ -1,14 +1,15 @@
 import { NestFactory } from '@nestjs/core';
+import helmet from 'helmet';
 import { AppModule } from './app.module';
 import { ZodValidationPipe } from './common/zod-validation.pipe';
+import { buildCorsOptions } from './common/cors.config';
 
 async function bootstrap(): Promise<void> {
   const app = await NestFactory.create(AppModule);
 
-  app.enableCors({
-    origin: process.env.FRONTEND_URL ?? 'http://localhost:3000',
-    credentials: true,
-  });
+  app.use(helmet());
+
+  app.enableCors(buildCorsOptions());
 
   app.useGlobalPipes(new ZodValidationPipe());
 

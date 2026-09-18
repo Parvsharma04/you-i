@@ -48,3 +48,10 @@ export const SCORE_RANK_THRESHOLDS = {
 } as const;
 
 export type ScoreRank = keyof typeof SCORE_RANK_THRESHOLDS | 'F';
+
+/**
+ * Header carrying the caller's bearer player id, validated by `PlayerGuard`
+ * in apps/api against the session's player1Id/player2Id. Replaces the
+ * legacy body-based `playerId` field for authenticated routes.
+ */
+export const PLAYER_ID_HEADER = 'x-player-id';

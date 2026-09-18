@@ -86,17 +86,23 @@ export const api = {
   submitAnswer: (sessionId: string, questionId: number, playerId: string, answer: string) =>
     fetchAPI('/answer', {
       method: 'POST',
+      headers: { 'X-Player-Id': playerId },
+      // playerId is also still sent in the body as a deprecated fallback —
+      // remove once the API's ALLOW_LEGACY_PLAYER_ID_BODY flag is off.
       body: JSON.stringify({ sessionId, questionId, playerId, answer }),
     }),
 
   getAnswerCount: (sessionId: string) =>
     fetchAPI<AnswerCount>(`/answer/${sessionId}/count`),
 
-  generateResult: (sessionId: string) =>
+  generateResult: (sessionId: string, playerId: string) =>
     fetchAPI<QuizResult>(`/result/generate/${sessionId}`, {
       method: 'POST',
+      headers: { 'X-Player-Id': playerId },
     }),
 
-  getResult: (sessionId: string) =>
-    fetchAPI<QuizResult | null>(`/result/${sessionId}`),
+  getResult: (sessionId: string, playerId: string) =>
+    fetchAPI<QuizResult | null>(`/result/${sessionId}`, {
+      headers: { 'X-Player-Id': playerId },
+    }),
 };

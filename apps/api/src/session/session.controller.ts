@@ -1,20 +1,19 @@
-import {
-  Controller,
-  Post,
-  Get,
-  Body,
-  Param,
-  Headers,
-  BadRequestException,
-} from '@nestjs/common';
+import { Controller, Post, Get, Body, Param, UseGuards } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { SessionService } from './session.service';
 import { CreateSessionDto, JoinSessionDto } from './session.dto';
+import { PlayerGuard } from '../common/guards/player.guard';
+import type { PlayerContext } from '../common/guards/player.guard';
+import { CurrentPlayer } from '../common/decorators/current-player.decorator';
 
 @Controller('session')
 export class SessionController {
   constructor(private readonly sessionService: SessionService) {}
 
+  // Costs an LLM call to generate questions — tight limit, distinct from
+  // the default throttler config.
   @Post('create')
+  @Throttle({ default: { limit: 3, ttl: 60_000 } })
   async create(@Body() dto: CreateSessionDto) {
     return this.sessionService.create(dto);
   }
@@ -27,14 +26,12 @@ export class SessionController {
   // Must be declared before the `:id` route below so Nest doesn't try to
   // match "state" as a session id.
   @Get(':sessionId/state')
+  @UseGuards(PlayerGuard)
   async getState(
     @Param('sessionId') sessionId: string,
-    @Headers('x-player-id') playerId: string,
+    @CurrentPlayer() player: PlayerContext,
   ) {
-    if (!playerId) {
-      throw new BadRequestException('X-Player-Id header is required');
-    }
-    return this.sessionService.getState(sessionId, playerId);
+    return this.sessionService.getState(sessionId, player.playerId);
   }
 
   @Get(':id')

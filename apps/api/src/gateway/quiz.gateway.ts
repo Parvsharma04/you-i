@@ -16,19 +16,20 @@ import type {
   ServerToClientEvents,
   SubmitAnswerSocketPayload,
 } from '@youandi/shared';
+import { PrismaService } from '../prisma/prisma.service';
+import { buildCorsOptions } from '../common/cors.config';
 
 type QuizServer = Server<ClientToServerEvents, ServerToClientEvents>;
 type QuizSocket = Socket<ClientToServerEvents, ServerToClientEvents>;
 
 @WebSocketGateway({
-  cors: {
-    origin: process.env.FRONTEND_URL ?? 'http://localhost:3000',
-    credentials: true,
-  },
+  cors: buildCorsOptions(),
 })
 export class QuizGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer()
   server!: QuizServer;
+
+  constructor(private readonly prisma: PrismaService) {}
 
   handleConnection(client: QuizSocket): void {
     console.log(`Client connected: ${client.id}`);
@@ -38,12 +39,33 @@ export class QuizGateway implements OnGatewayConnection, OnGatewayDisconnect {
     console.log(`Client disconnected: ${client.id}`);
   }
 
+  // Same authorization rule as the HTTP PlayerGuard: the caller's playerId
+  // must belong to the session before it can join the room and observe
+  // game events. Anything else and the socket is disconnected outright —
+  // there is no room to fall back into.
   @SubscribeMessage('joinRoom')
-  handleJoinRoom(
+  async handleJoinRoom(
     @ConnectedSocket() client: QuizSocket,
     @MessageBody() data: JoinRoomPayload,
-  ): void {
-    client.join(data.sessionId);
+  ): Promise<void> {
+    const session = await this.prisma.session.findUnique({
+      where: { id: data.sessionId },
+    });
+
+    const belongsToSession =
+      !!session &&
+      (data.playerId === session.player1Id ||
+        (!!session.player2Id && data.playerId === session.player2Id));
+
+    if (!belongsToSession) {
+      console.warn(
+        `Rejected joinRoom for session ${data.sessionId}: player ${data.playerId} does not belong`,
+      );
+      client.disconnect(true);
+      return;
+    }
+
+    await client.join(data.sessionId);
     console.log(`Player ${data.playerId} joined room ${data.sessionId}`);
 
     // Notify others in the room
