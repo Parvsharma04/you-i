@@ -27,6 +27,7 @@ const WEB_HOST = (() => {
 
 export default ({ config }: ConfigContext): ExpoConfig => ({
   ...config,
+  owner: "parvsharma",
   name: 'You & I',
   slug: 'mobile',
   version: '1.0.0',
@@ -136,5 +137,9 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     wsUrl: WS_URL,
     webUrl: WEB_URL,
     appEnv: APP_ENV,
+    eas: {
+      ...config.extra?.eas,
+      projectId: 'e6d67bf9-d105-4ece-8cdb-50de688c4f11',
+    },
   },
 });
