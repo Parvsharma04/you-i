@@ -43,8 +43,8 @@ function isLegacyBodyFallbackEnabled(): boolean {
  * `body.sessionId` for routes that only carry it in the body) and checks
  * the caller's player id — read from the `X-Player-Id` header, or from
  * `body.playerId` on routes explicitly opted in with
- * `@AllowLegacyPlayerIdBody()` — against `player1Id`/`player2Id`. Attaches
- * `{ playerId, role }` to the request as `request.player` on success;
+ * `@AllowLegacyPlayerIdBody()` — against the session's `SessionPlayer` rows.
+ * Attaches `{ playerId, role }` to the request as `request.player` on success;
  * throws 403 on mismatch, 400 if nothing identifies the player, 404 if the
  * session doesn't exist.
  */
@@ -97,21 +97,18 @@ export class PlayerGuard implements CanActivate {
 
     const session = await this.prisma.session.findUnique({
       where: { id: sessionId },
+      include: { players: true },
     });
     if (!session) {
       throw new NotFoundException('Session not found');
     }
 
-    let role: PlayerRole;
-    if (playerId === session.player1Id) {
-      role = 'player1';
-    } else if (session.player2Id && playerId === session.player2Id) {
-      role = 'player2';
-    } else {
+    const player = session.players.find((p) => p.playerId === playerId);
+    if (!player) {
       throw new ForbiddenException('Player does not belong to this session');
     }
 
-    request.player = { playerId, role };
+    request.player = { playerId, role: player.role as PlayerRole };
     return true;
   }
 }

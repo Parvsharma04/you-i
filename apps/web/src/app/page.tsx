@@ -23,6 +23,8 @@ export default function LandingPage() {
   const [questionCount, setQuestionCount] = useState(10);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [joinCode, setJoinCode] = useState('');
+  const [createdCode, setCreatedCode] = useState<string | null>(null);
 
   const handleStart = async () => {
     if (!category) { setError('Select a mode to play.'); return; }
@@ -31,11 +33,28 @@ export default function LandingPage() {
     try {
       const result = await api.createSession(category, questionCount);
       sessionStorage.setItem(`player_${result.sessionId}`, JSON.stringify({
-        playerId: result.player1Id, isHost: true,
+        playerId: result.playerId, isHost: true,
       }));
+      setCreatedCode(result.code);
       router.push(`/lobby/${result.sessionId}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Connection Error.');
+      setLoading(false);
+    }
+  };
+
+  const handleJoin = async () => {
+    if (!joinCode.trim()) { setError('Enter a room code.'); return; }
+    setLoading(true);
+    setError('');
+    try {
+      const result = await api.joinSession(joinCode.trim());
+      sessionStorage.setItem(`player_${result.sessionId}`, JSON.stringify({
+        playerId: result.playerId, isHost: false,
+      }));
+      router.push(`/lobby/${result.sessionId}`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not join.');
       setLoading(false);
     }
   };
@@ -87,6 +106,22 @@ export default function LandingPage() {
           disabled={loading} style={{ width: '100%', padding: '16px' }}>
           {loading ? 'LOADING...' : 'START GAME'}
         </button>
+
+        <div className="flex flex-col gap-4 mt-6">
+          <h3 className="text-[1.2rem] font-display text-text-primary text-center">OR ENTER CODE:</h3>
+          <input
+            type="text"
+            value={joinCode}
+            onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
+            placeholder="6-DIGIT CODE"
+            maxLength={6}
+            className="p-3 bg-bg-secondary border-2 border-border-color text-text-primary text-center font-display tracking-widest"
+          />
+          <button id="join-btn" className="btn-primary" onClick={handleJoin}
+            disabled={loading || joinCode.trim().length < 6} style={{ width: '100%', padding: '16px' }}>
+            {loading ? 'JOINING...' : 'JOIN GAME'}
+          </button>
+        </div>
 
       </div>
     </main>

@@ -20,7 +20,7 @@ export class SessionController {
 
   @Post('join')
   async join(@Body() dto: JoinSessionDto) {
-    return this.sessionService.join(dto.sessionId);
+    return this.sessionService.join(dto);
   }
 
   // Must be declared before the `:id` route below so Nest doesn't try to

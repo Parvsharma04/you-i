@@ -16,8 +16,10 @@ describe('PlayerGuard', () => {
 
   const SESSION = {
     id: 'session-1',
-    player1Id: 'p1',
-    player2Id: 'p2',
+    players: [
+      { playerId: 'p1', role: 'player1' },
+      { playerId: 'p2', role: 'player2' },
+    ],
   };
 
   function makeContext(opts: {

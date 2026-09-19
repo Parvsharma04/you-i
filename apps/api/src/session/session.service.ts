@@ -6,8 +6,10 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { v4 as uuidv4 } from 'uuid';
-import { CreateSessionDto } from './session.dto';
+import { CreateSessionDto, JoinSessionDto } from './session.dto';
 import { LlmService } from '../llm/llm.service';
+import { CodeGeneratorService } from './code-generator.service';
+import { normalizeRoomCode } from './code-normalizer';
 import {
   Category,
   CreateSessionResponse,
@@ -20,23 +22,39 @@ import {
   SessionStateResponse,
 } from '@youandi/shared';
 
+const CODE_TTL_MS = 10 * 60 * 1000;
+
 @Injectable()
 export class SessionService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly llmService: LlmService,
+    private readonly codeGenerator: CodeGeneratorService,
   ) {}
 
   async create(dto: CreateSessionDto): Promise<CreateSessionResponse> {
     const player1Id = uuidv4();
+    const now = new Date();
+    const codeExpiresAt = new Date(now.getTime() + CODE_TTL_MS);
+
     const session = await this.prisma.session.create({
       data: {
         category: dto.category,
         questionCount: dto.questionCount,
-        player1Id,
         status: SESSION_STATUSES.WAITING,
+        codeExpiresAt,
+        lastActivityAt: now,
+        players: {
+          create: {
+            playerId: player1Id,
+            role: 'player1',
+            joinedAt: now,
+          },
+        },
       },
     });
+
+    const code = await this.codeGenerator.generateAndAssign(session.id);
 
     const questions = await this.generateQuestions(
       session.id,
@@ -46,9 +64,9 @@ export class SessionService {
 
     return {
       sessionId: session.id,
-      player1Id,
+      playerId: player1Id,
+      code,
       questionIds: questions.map((q) => q.id),
-      shareLink: `/lobby/${session.id}`,
     };
   }
 
@@ -408,31 +426,58 @@ IMPORTANT: Respond ONLY with valid JSON in this exact format, no other text:
     return result;
   }
 
-  async join(sessionId: string): Promise<JoinSessionResponse> {
+  async join(dto: JoinSessionDto): Promise<JoinSessionResponse> {
+    const code = normalizeRoomCode(dto.code);
+    if (code.length !== 6) {
+      throw new BadRequestException('Room code must be 6 characters');
+    }
+
+    const now = new Date();
+
     const session = await this.prisma.session.findUnique({
-      where: { id: sessionId },
+      where: { code },
+      include: { players: true },
     });
 
     if (!session) {
       throw new NotFoundException('Session not found');
     }
 
-    if (session.player2Id) {
+    if (session.status !== SESSION_STATUSES.WAITING) {
+      throw new BadRequestException('Session is no longer joinable');
+    }
+
+    if (session.codeExpiresAt && session.codeExpiresAt < now) {
+      throw new BadRequestException('Room code has expired');
+    }
+
+    const existingPlayer2 = session.players.find((p) => p.role === 'player2');
+    if (existingPlayer2) {
       throw new BadRequestException('Session is already full');
     }
 
     const player2Id = uuidv4();
     await this.prisma.session.update({
-      where: { id: sessionId },
+      where: { id: session.id },
       data: {
-        player2Id,
         status: SESSION_STATUSES.ACTIVE,
+        code: null,
+        codeExpiresAt: null,
+        startedAt: now,
+        lastActivityAt: now,
+        players: {
+          create: {
+            playerId: player2Id,
+            role: 'player2',
+            joinedAt: now,
+          },
+        },
       },
     });
 
     return {
-      sessionId,
-      player2Id,
+      sessionId: session.id,
+      playerId: player2Id,
       category: session.category as Category,
       questionCount: session.questionCount,
     };
@@ -456,23 +501,21 @@ IMPORTANT: Respond ONLY with valid JSON in this exact format, no other text:
   ): Promise<SessionStateResponse> {
     const session = await this.prisma.session.findUnique({
       where: { id: sessionId },
+      include: { players: true },
     });
 
     if (!session) {
       throw new NotFoundException('Session not found');
     }
 
-    let role: PlayerRole;
-    if (playerId === session.player1Id) {
-      role = 'player1';
-    } else if (session.player2Id && playerId === session.player2Id) {
-      role = 'player2';
-    } else {
+    const player = session.players.find((p) => p.playerId === playerId);
+    if (!player) {
       throw new ForbiddenException('Player does not belong to this session');
     }
 
-    const partnerId =
-      role === 'player1' ? session.player2Id : session.player1Id;
+    const role = player.role as PlayerRole;
+    const partner = session.players.find((p) => p.role !== role);
+    const partnerId = partner?.playerId ?? null;
 
     // One query per table — questions, answers (question/player ids only,
     // never the answer values) and the result — no N+1.

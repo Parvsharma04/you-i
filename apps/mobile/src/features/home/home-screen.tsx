@@ -1,5 +1,10 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Pressable, ScrollView, View } from 'react-native';
+import {
+  Pressable,
+  ScrollView,
+  TextInput,
+  View,
+} from 'react-native';
 import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { CATEGORIES, type Category } from '@youandi/shared';
@@ -8,7 +13,13 @@ import { Button } from '@/components/ui/button';
 import { OptionTile } from '@/components/ui/option-tile';
 import { Screen } from '@/components/ui/screen';
 import { Text } from '@/components/ui/text';
-import { ApiError, NetworkError, TimeoutError, createSession } from '@/lib/api';
+import {
+  ApiError,
+  NetworkError,
+  TimeoutError,
+  createSession,
+  joinSessionByCode,
+} from '@/lib/api';
 import {
   getActiveSession,
   saveSession,
@@ -37,6 +48,8 @@ export default function HomeScreen() {
     null,
   );
   const [isPending, setIsPending] = useState(false);
+  const [joinCode, setJoinCode] = useState('');
+  const [createdCode, setCreatedCode] = useState<string | null>(null);
   const [error, setError] = useState<{
     message: string;
     canRetry: boolean;
@@ -81,22 +94,25 @@ export default function HomeScreen() {
 
     setIsPending(true);
     setError(null);
+    setCreatedCode(null);
 
     try {
-      const { sessionId, player1Id } = await createSession({
+      const { sessionId, playerId, code } = await createSession({
         category: selectedCategory,
         questionCount: selectedCount,
       });
 
       await saveSession({
         sessionId,
-        playerId: player1Id,
+        playerId,
         role: 'player1',
         category: selectedCategory,
         questionCount: selectedCount,
+        roomCode: code,
         savedAt: new Date().toISOString(),
       });
 
+      setCreatedCode(code);
       router.push(`/lobby/${sessionId}`);
     } catch (err) {
       setIsPending(false);
@@ -125,6 +141,59 @@ export default function HomeScreen() {
       }
     }
   }, [isPending, selectedCategory, selectedCount, router]);
+
+  const handleJoinSession = useCallback(async () => {
+    if (isPending || !joinCode.trim()) return;
+
+    setIsPending(true);
+    setError(null);
+
+    try {
+      const joined = await joinSessionByCode(joinCode.trim());
+
+      await saveSession({
+        sessionId: joined.sessionId,
+        playerId: joined.playerId,
+        role: 'player2',
+        category: joined.category,
+        questionCount: joined.questionCount,
+        savedAt: new Date().toISOString(),
+      });
+
+      router.push(`/lobby/${joined.sessionId}`);
+    } catch (err) {
+      setIsPending(false);
+
+      if (err instanceof NetworkError || err instanceof TimeoutError) {
+        setError({
+          message: "You're offline. Check your connection and try again.",
+          canRetry: true,
+        });
+      } else if (err instanceof ApiError && err.status === 404) {
+        setError({
+          message: 'Game not found. Check the code and try again.',
+          canRetry: true,
+        });
+      } else if (err instanceof ApiError && err.status === 400) {
+        const message =
+          err instanceof Error
+            ? err.message
+            : 'This game is no longer joinable.';
+        setError({ message, canRetry: false });
+      } else if (err instanceof ApiError && err.status >= 500) {
+        setError({
+          message: 'Something went wrong on our end. Please try again.',
+          canRetry: true,
+        });
+      } else {
+        const message =
+          err instanceof Error
+            ? err.message
+            : 'Could not join session. Please try again.';
+        setError({ message, canRetry: true });
+      }
+    }
+  }, [isPending, joinCode, router]);
 
   return (
     <Screen>
@@ -216,6 +285,32 @@ export default function HomeScreen() {
               }
               onPress={handleCreateSession}
               disabled={isPending}
+            />
+          </View>
+
+          <View className="mt-8 gap-4">
+            <Text
+              variant="body-sm"
+              color="muted"
+              className="text-center uppercase tracking-widest"
+            >
+              Or join with a code
+            </Text>
+            <TextInput
+              value={joinCode}
+              onChangeText={setJoinCode}
+              placeholder="ENTER 6-DIGIT CODE"
+              autoCapitalize="characters"
+              autoCorrect={false}
+              maxLength={6}
+              editable={!isPending}
+              className="border-2 border-border-color bg-bg-secondary p-3 text-center font-body text-text-primary"
+              style={{ fontSize: 18, letterSpacing: 4 }}
+            />
+            <Button
+              title={isPending ? 'JOINING…' : 'JOIN GAME'}
+              onPress={handleJoinSession}
+              disabled={isPending || joinCode.trim().length < 6}
             />
           </View>
         </View>

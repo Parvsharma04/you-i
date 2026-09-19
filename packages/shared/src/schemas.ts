@@ -15,6 +15,8 @@ export const sessionStatusSchema = z.enum([
   SESSION_STATUSES.WAITING,
   SESSION_STATUSES.ACTIVE,
   SESSION_STATUSES.COMPLETED,
+  SESSION_STATUSES.EXPIRED,
+  SESSION_STATUSES.ABANDONED,
 ]);
 
 // ── POST /session/create ────────────────────────────────────────────────
@@ -27,9 +29,9 @@ export type CreateSessionRequest = z.infer<typeof createSessionRequestSchema>;
 
 export const createSessionResponseSchema = z.object({
   sessionId: z.string(),
-  player1Id: z.string(),
+  playerId: z.string(),
+  code: z.string(),
   questionIds: z.array(z.number().int()),
-  shareLink: z.string(),
 });
 export type CreateSessionResponse = z.infer<
   typeof createSessionResponseSchema
@@ -38,13 +40,13 @@ export type CreateSessionResponse = z.infer<
 // ── POST /session/join ──────────────────────────────────────────────────
 
 export const joinSessionRequestSchema = z.object({
-  sessionId: z.string(),
+  code: z.string(),
 });
 export type JoinSessionRequest = z.infer<typeof joinSessionRequestSchema>;
 
 export const joinSessionResponseSchema = z.object({
   sessionId: z.string(),
-  player2Id: z.string(),
+  playerId: z.string(),
   category: categorySchema,
   questionCount: z.number().int(),
 });
@@ -57,8 +59,7 @@ export const sessionSchema = z.object({
   category: categorySchema,
   questionCount: z.number().int(),
   status: sessionStatusSchema,
-  player1Id: z.string(),
-  player2Id: z.string().nullable(),
+  code: z.string().nullable(),
   createdAt: z.string(),
 });
 export type SessionResponse = z.infer<typeof sessionSchema>;

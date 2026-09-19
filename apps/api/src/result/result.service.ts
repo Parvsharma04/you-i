@@ -54,11 +54,15 @@ export class ResultService {
 
     const session = await this.prisma.session.findUnique({
       where: { id: sessionId },
+      include: { players: true },
     });
     if (!session) {
       throw new BadRequestException('Session not found');
     }
-    if (!session.player2Id) {
+
+    const player1 = session.players.find((p) => p.role === 'player1');
+    const player2 = session.players.find((p) => p.role === 'player2');
+    if (!player1 || !player2) {
       throw new BadRequestException(
         'Session is not complete — Player 2 has not joined',
       );
@@ -188,8 +192,11 @@ IMPORTANT: Respond ONLY with valid JSON in this exact format, no other text:
     try {
       const session = await this.prisma.session.findUnique({
         where: { id: sessionId },
+        include: { players: true },
       });
-      if (!session || !session.player2Id) {
+      const player1 = session?.players.find((p) => p.role === 'player1');
+      const player2 = session?.players.find((p) => p.role === 'player2');
+      if (!session || !player1 || !player2) {
         // Session vanished or player2 left between request and now — bail
         // out quietly, there is nothing sane to generate or emit.
         return;
@@ -208,10 +215,10 @@ IMPORTANT: Respond ONLY with valid JSON in this exact format, no other text:
       const qaPairs = questionIds.map((qId) => {
         const question = questionMap.get(qId);
         const p1Answer = answers.find(
-          (a) => a.questionId === qId && a.playerId === session.player1Id,
+          (a) => a.questionId === qId && a.playerId === player1.playerId,
         );
         const p2Answer = answers.find(
-          (a) => a.questionId === qId && a.playerId === session.player2Id,
+          (a) => a.questionId === qId && a.playerId === player2.playerId,
         );
         return {
           question: question?.text ?? 'Unknown question',

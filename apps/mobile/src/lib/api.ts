@@ -193,9 +193,10 @@ export async function createSession(
   });
 }
 
-export async function joinSession(
-  body: JoinSessionRequest,
+export async function joinSessionByCode(
+  code: string,
 ): Promise<JoinSessionResponse> {
+  const body: JoinSessionRequest = { code };
   joinSessionRequestSchema.parse(body);
   return request({
     method: 'POST',

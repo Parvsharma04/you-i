@@ -8,16 +8,33 @@ datasource db {
 }
 
 model Session {
-  id            String     @id @default(uuid())
-  category      String     // love, friendship, deep_talk, fun, spicy
-  questionCount Int
-  status        String     @default("waiting") // waiting | active | completed
-  player1Id     String     @default(uuid())
-  player2Id     String?
-  createdAt     DateTime   @default(now())
-  answers       Answer[]
-  questions     Question[]
-  result        Result?
+  id             String        @id @default(uuid())
+  category       String        // love, friendship, deep_talk, fun, spicy
+  questionCount  Int
+  status         String        @default("waiting") // waiting | active | completed | expired | abandoned
+  code           String?       @unique
+  codeExpiresAt  DateTime?
+  startedAt      DateTime?
+  lastActivityAt DateTime      @default(now())
+  createdAt      DateTime      @default(now())
+  players        SessionPlayer[]
+  answers        Answer[]
+  questions      Question[]
+  result         Result?
+}
+
+model SessionPlayer {
+  id          String   @id @default(uuid())
+  sessionId   String
+  playerId    String
+  role        String   // player1 | player2
+  deviceId    String?
+  joinedAt    DateTime @default(now())
+  completedAt DateTime?
+  session     Session  @relation(fields: [sessionId], references: [id])
+
+  @@unique([sessionId, role])
+  @@unique([sessionId, playerId])
 }
 
 model Question {

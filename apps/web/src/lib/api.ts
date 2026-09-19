@@ -20,14 +20,14 @@ async function fetchAPI<T>(endpoint: string, options?: RequestInit): Promise<T> 
 
 export interface CreateSessionResponse {
   sessionId: string;
-  player1Id: string;
+  playerId: string;
+  code: string;
   questionIds: number[];
-  shareLink: string;
 }
 
 export interface JoinSessionResponse {
   sessionId: string;
-  player2Id: string;
+  playerId: string;
   category: string;
   questionCount: number;
 }
@@ -37,8 +37,7 @@ export interface SessionResponse {
   category: string;
   questionCount: number;
   status: string;
-  player1Id: string;
-  player2Id: string | null;
+  code: string | null;
   createdAt: string;
 }
 
@@ -71,10 +70,10 @@ export const api = {
       body: JSON.stringify({ category, questionCount }),
     }),
 
-  joinSession: (sessionId: string) =>
+  joinSession: (code: string) =>
     fetchAPI<JoinSessionResponse>('/session/join', {
       method: 'POST',
-      body: JSON.stringify({ sessionId }),
+      body: JSON.stringify({ code }),
     }),
 
   getSession: (sessionId: string) =>

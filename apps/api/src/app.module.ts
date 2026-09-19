@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
+import { ScheduleModule } from '@nestjs/schedule';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { PrismaModule } from './prisma/prisma.module';
 import { SessionModule } from './session/session.module';
@@ -22,6 +23,7 @@ import { HealthModule } from './health/health.module';
         limit: 30,
       },
     ]),
+    ScheduleModule.forRoot(),
     PrismaModule,
     SessionModule,
     QuestionModule,

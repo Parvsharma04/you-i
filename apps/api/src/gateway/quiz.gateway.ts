@@ -50,12 +50,12 @@ export class QuizGateway implements OnGatewayConnection, OnGatewayDisconnect {
   ): Promise<void> {
     const session = await this.prisma.session.findUnique({
       where: { id: data.sessionId },
+      include: { players: true },
     });
 
     const belongsToSession =
       !!session &&
-      (data.playerId === session.player1Id ||
-        (!!session.player2Id && data.playerId === session.player2Id));
+      session.players.some((player) => player.playerId === data.playerId);
 
     if (!belongsToSession) {
       console.warn(

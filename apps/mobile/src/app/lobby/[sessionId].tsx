@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ScrollView, Share, View } from 'react-native';
-import * as Clipboard from 'expo-clipboard';
+import { ScrollView, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import {
   type Category,
@@ -22,19 +21,15 @@ import {
   ApiError,
   NetworkError,
   TimeoutError,
-  getSession as getSessionApi,
   getSessionState,
-  joinSession,
 } from '@/lib/api';
-import { env } from '@/lib/env';
 import { getLastError, getLastState } from '@/lib/socket';
 import {
   getSession as getStoredSession,
-  saveSession,
   type SessionRecord,
 } from '@/lib/storage';
 
-type LobbyStatus = 'loading' | 'joining' | 'host' | 'waiting' | 'error';
+type LobbyStatus = 'loading' | 'host' | 'waiting' | 'error' | 'needsCode';
 
 type ErrorKind = 'notFound' | 'full' | 'completed' | 'network' | 'unknown';
 
@@ -51,11 +46,6 @@ function formatCategory(category: Category): string {
     .join(' ');
 }
 
-function buildShareLink(sessionId: string): string {
-  const base = env.webUrl.replace(/\/$/, '');
-  return `${base}/lobby/${sessionId}`;
-}
-
 function LobbyScreen() {
   const router = useRouter();
   const rawParams = useLocalSearchParams<{ sessionId: string }>();
@@ -70,7 +60,7 @@ function LobbyScreen() {
   const [role, setRole] = useState<'player1' | 'player2' | null>(null);
   const [category, setCategory] = useState<Category | null>(null);
   const [questionCount, setQuestionCount] = useState<number | null>(null);
-  const [copied, setCopied] = useState(false);
+  const [roomCode, setRoomCode] = useState<string | null>(null);
   const navigatingRef = useRef(false);
   const partnerJoinedRef = useRef<
     ((payload: PlayerJoinedPayload) => void) | null
@@ -82,93 +72,6 @@ function LobbyScreen() {
     markLeaving();
     router.replace(`/quiz/${sessionId}`);
   }, [router, sessionId, markLeaving]);
-
-  const joinAsGuest = useCallback(async () => {
-    if (!sessionId) return;
-
-    setStatus('joining');
-    setLobbyError(null);
-
-    try {
-      const session = await getSessionApi(sessionId);
-
-      if (session.status === SESSION_STATUSES.COMPLETED) {
-        setLobbyError({
-          kind: 'completed',
-          message: 'This game has already finished.',
-          actionLabel: 'START NEW GAME',
-        });
-        setStatus('error');
-        return;
-      }
-
-      if (session.player2Id) {
-        setLobbyError({
-          kind: 'full',
-          message: 'This game already has two players.',
-          actionLabel: 'START NEW GAME',
-        });
-        setStatus('error');
-        return;
-      }
-
-      const joined = await joinSession({ sessionId });
-
-      const record: SessionRecord = {
-        sessionId,
-        playerId: joined.player2Id,
-        role: 'player2',
-        category: joined.category,
-        questionCount: joined.questionCount,
-        savedAt: new Date().toISOString(),
-      };
-      await saveSession(record);
-
-      setPlayerId(joined.player2Id);
-      setRole('player2');
-      setCategory(joined.category);
-      setQuestionCount(joined.questionCount);
-      setStatus('waiting');
-    } catch (err) {
-      if (err instanceof NetworkError || err instanceof TimeoutError) {
-        setLobbyError({
-          kind: 'network',
-          message: "You're offline. Check your connection and try again.",
-          actionLabel: 'TRY AGAIN',
-        });
-      } else if (err instanceof ApiError) {
-        if (err.status === 404) {
-          setLobbyError({
-            kind: 'notFound',
-            message: 'Game not found. It may have expired.',
-            actionLabel: 'START NEW GAME',
-          });
-        } else if (
-          err.status === 400 &&
-          err.message.toLowerCase().includes('already full')
-        ) {
-          setLobbyError({
-            kind: 'full',
-            message: 'This game already has two players.',
-            actionLabel: 'START NEW GAME',
-          });
-        } else {
-          setLobbyError({
-            kind: 'unknown',
-            message: err.message,
-            actionLabel: 'TRY AGAIN',
-          });
-        }
-      } else {
-        setLobbyError({
-          kind: 'unknown',
-          message: 'Could not join this game.',
-          actionLabel: 'TRY AGAIN',
-        });
-      }
-      setStatus('error');
-    }
-  }, [sessionId]);
 
   useEffect(() => {
     if (!sessionId) return;
@@ -184,11 +87,14 @@ function LobbyScreen() {
         setRole(stored.role);
         setCategory(stored.category);
         setQuestionCount(stored.questionCount);
+        setRoomCode(stored.roomCode ?? null);
         setStatus(stored.role === 'player1' ? 'host' : 'waiting');
         return;
       }
 
-      await joinAsGuest();
+      // Joining is now code-based from the home screen. A deep link to a
+      // lobby without a stored session means we don't have a player id yet.
+      setStatus('needsCode');
     }
 
     bootstrap();
@@ -196,7 +102,7 @@ function LobbyScreen() {
     return () => {
       mounted = false;
     };
-  }, [sessionId, joinAsGuest]);
+  }, [sessionId]);
 
   const {
     status: socketStatus,
@@ -280,22 +186,9 @@ function LobbyScreen() {
     ),
   );
 
-  const handleCopy = useCallback(async () => {
-    if (!sessionId) return;
-    await Clipboard.setStringAsync(buildShareLink(sessionId));
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  }, [sessionId]);
-
-  const handleShare = useCallback(() => {
-    if (!sessionId) return;
-    const url = buildShareLink(sessionId);
-    void Share.share({ message: `PLAYER 2 PRESS START:\n\n${url}` });
-  }, [sessionId]);
-
   const handleRetry = useCallback(async () => {
     if (!playerId) {
-      await joinAsGuest();
+      router.replace('/');
       return;
     }
 
@@ -315,7 +208,7 @@ function LobbyScreen() {
       });
       setStatus('error');
     }
-  }, [playerId, role, sessionId, joinAsGuest, navigateToQuiz]);
+  }, [playerId, role, sessionId, router, navigateToQuiz]);
 
   const handleErrorAction = useCallback(() => {
     if (!lobbyError) return;
@@ -372,14 +265,15 @@ function LobbyScreen() {
             </View>
           )}
 
-          {status === 'joining' && (
-            <View className="items-center gap-4">
-              <Text variant="display-md" color="primary">
-                JOINING GAME…
+          {status === 'needsCode' && (
+            <View className="items-center gap-6">
+              <Text variant="display-md" color="primary" className="text-center">
+                ENTER CODE ON HOME SCREEN
               </Text>
-              <Text variant="body" color="secondary">
-                Hold on while we grab your controller.
+              <Text variant="body" color="secondary" className="text-center">
+                Joining a game now requires a 6-character room code.
               </Text>
+              <Button title="GO HOME" onPress={() => router.replace('/')} />
             </View>
           )}
 
@@ -421,7 +315,7 @@ function LobbyScreen() {
 
                 <Text variant="body" color="secondary" className="text-center">
                   {status === 'host'
-                    ? `${questionCount} STAGES · SHARE LINK TO CO-OP`
+                    ? `${questionCount} STAGES · SHARE CODE TO CO-OP`
                     : 'Waiting for the host to start…'}
                 </Text>
               </View>
@@ -430,29 +324,25 @@ function LobbyScreen() {
                 <Card shadowSize="md" className="mb-8">
                   <View className="gap-4">
                     <Text variant="body-sm" bold color="primary">
-                      INVITE LINK
+                      ROOM CODE
                     </Text>
                     <View className="border-2 border-border-color bg-bg-secondary p-3">
                       <Text
-                        variant="body-sm"
+                        variant="display-md"
                         color="primary"
                         selectable
-                        numberOfLines={2}
+                        className="text-center tracking-widest"
                       >
-                        {buildShareLink(sessionId)}
+                        {roomCode ?? '…'}
                       </Text>
                     </View>
-                    <View className="flex-row gap-3">
-                      <View className="flex-1">
-                        <Button
-                          title={copied ? 'COPIED!' : 'COPY'}
-                          onPress={handleCopy}
-                        />
-                      </View>
-                      <View className="flex-1">
-                        <Button title="SHARE" onPress={handleShare} />
-                      </View>
-                    </View>
+                    <Text
+                      variant="body-sm"
+                      color="secondary"
+                      className="text-center"
+                    >
+                      Share this code with Player 2.
+                    </Text>
                   </View>
                 </Card>
               )}

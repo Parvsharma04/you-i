@@ -31,6 +31,8 @@ export const SESSION_STATUSES = {
   WAITING: 'waiting',
   ACTIVE: 'active',
   COMPLETED: 'completed',
+  EXPIRED: 'expired',
+  ABANDONED: 'abandoned',
 } as const;
 
 export type SessionStatus =
@@ -51,7 +53,7 @@ export type ScoreRank = keyof typeof SCORE_RANK_THRESHOLDS | 'F';
 
 /**
  * Header carrying the caller's bearer player id, validated by `PlayerGuard`
- * in apps/api against the session's player1Id/player2Id. Replaces the
+ * in apps/api against the session's `SessionPlayer` rows. Replaces the
  * legacy body-based `playerId` field for authenticated routes.
  */
 export const PLAYER_ID_HEADER = 'x-player-id';

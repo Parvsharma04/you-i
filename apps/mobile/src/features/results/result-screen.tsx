@@ -135,17 +135,18 @@ export default function ResultScreen({ record }: ResultScreenProps) {
     setPlayPending(true);
 
     try {
-      const { sessionId, player1Id } = await createSession({
+      const { sessionId, playerId, code } = await createSession({
         category: record.category,
         questionCount: record.questionCount,
       });
 
       await saveSession({
         sessionId,
-        playerId: player1Id,
+        playerId,
         role: 'player1',
         category: record.category,
         questionCount: record.questionCount,
+        roomCode: code,
         savedAt: new Date().toISOString(),
       });
 
