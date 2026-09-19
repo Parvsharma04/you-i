@@ -27,7 +27,7 @@ const WEB_HOST = (() => {
 
 export default ({ config }: ConfigContext): ExpoConfig => ({
   ...config,
-  owner: "parvsharma",
+  owner: 'parvsharma',
   name: 'You & I',
   slug: 'mobile',
   version: '1.0.0',

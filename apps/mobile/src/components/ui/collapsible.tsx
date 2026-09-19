@@ -54,7 +54,9 @@ export function Collapsible({
         (reduceMotion ? (
           content
         ) : (
-          <Animated.View entering={FadeIn.duration(200)}>{content}</Animated.View>
+          <Animated.View entering={FadeIn.duration(200)}>
+            {content}
+          </Animated.View>
         ))}
     </ThemedView>
   );

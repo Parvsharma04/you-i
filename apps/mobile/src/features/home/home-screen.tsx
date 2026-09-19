@@ -1,10 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import {
-  Pressable,
-  ScrollView,
-  TextInput,
-  View,
-} from 'react-native';
+import { Pressable, ScrollView, TextInput, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { CATEGORIES, type Category } from '@youandi/shared';
@@ -154,7 +149,7 @@ export default function HomeScreen() {
       await saveSession({
         sessionId: joined.sessionId,
         playerId: joined.playerId,
-        role: 'player2',
+        role: joined.role,
         category: joined.category,
         questionCount: joined.questionCount,
         savedAt: new Date().toISOString(),

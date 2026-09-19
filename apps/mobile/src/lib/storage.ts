@@ -5,6 +5,7 @@ import { categorySchema, playerRoleSchema } from '@youandi/shared';
 
 const ACTIVE_SESSION_KEY = 'activeSessionId';
 const SESSION_INDEX_KEY = 'sessionIndex';
+const DEVICE_ID_KEY = 'deviceId';
 
 export type PlayerRole = z.infer<typeof playerRoleSchema>;
 
@@ -94,4 +95,18 @@ export async function clearAll(): Promise<void> {
     SecureStore.deleteItemAsync(SESSION_INDEX_KEY),
     ...index.map((id) => SecureStore.deleteItemAsync(sessionKey(id))),
   ]);
+}
+
+export async function getOrCreateDeviceId(): Promise<string> {
+  const existing = await SecureStore.getItemAsync(DEVICE_ID_KEY);
+  if (existing) return existing;
+
+  const bytes = Array.from({ length: 16 }, () =>
+    Math.floor(Math.random() * 256)
+      .toString(16)
+      .padStart(2, '0'),
+  );
+  const id = bytes.join('');
+  await SecureStore.setItemAsync(DEVICE_ID_KEY, id);
+  return id;
 }

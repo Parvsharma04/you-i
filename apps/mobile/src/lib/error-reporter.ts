@@ -38,7 +38,6 @@ export function reportError(error: Error, context: ErrorContext = {}): void {
   const maskedContext = maskSensitiveValues(context);
 
   if (__DEV__) {
-    // eslint-disable-next-line no-console
     console.error('[error-reporter]', error, maskedContext);
     return;
   }

@@ -1,12 +1,14 @@
 import { useEffect, useState } from 'react';
 import * as Network from 'expo-network';
 
-import { getSocketStatus, subscribeToStatus, type SocketStatus } from '@/lib/socket';
+import {
+  getSocketStatus,
+  subscribeToStatus,
+  type SocketStatus,
+} from '@/lib/socket';
 
 export type ConnectivityState =
-  | { kind: 'online' }
-  | { kind: 'noInternet' }
-  | { kind: 'serverUnreachable' };
+  { kind: 'online' } | { kind: 'noInternet' } | { kind: 'serverUnreachable' };
 
 const SERVER_UNREACHABLE_DELAY_MS = 5_000;
 
@@ -16,8 +18,11 @@ const SERVER_UNREACHABLE_DELAY_MS = 5_000;
  * the problem is on their end (no internet) or ours (server unreachable).
  */
 export function useConnectivity(): ConnectivityState {
-  const [networkReachable, setNetworkReachable] = useState<boolean | null>(null);
-  const [socketStatus, setSocketStatus] = useState<SocketStatus>(getSocketStatus());
+  const [networkReachable, setNetworkReachable] = useState<boolean | null>(
+    null,
+  );
+  const [socketStatus, setSocketStatus] =
+    useState<SocketStatus>(getSocketStatus());
   const [offlineSince, setOfflineSince] = useState<number | null>(null);
 
   useEffect(() => {
@@ -49,7 +54,8 @@ export function useConnectivity(): ConnectivityState {
   }, []);
 
   useEffect(() => {
-    const isSocketOffline = socketStatus === 'offline' || socketStatus === 'reconnecting';
+    const isSocketOffline =
+      socketStatus === 'offline' || socketStatus === 'reconnecting';
 
     if (!isSocketOffline) {
       setOfflineSince(null);
@@ -65,9 +71,12 @@ export function useConnectivity(): ConnectivityState {
     return { kind: 'noInternet' };
   }
 
-  const isSocketOffline = socketStatus === 'offline' || socketStatus === 'reconnecting';
+  const isSocketOffline =
+    socketStatus === 'offline' || socketStatus === 'reconnecting';
   const serverUnreachableForAWhile =
-    isSocketOffline && offlineSince !== null && Date.now() - offlineSince >= SERVER_UNREACHABLE_DELAY_MS;
+    isSocketOffline &&
+    offlineSince !== null &&
+    Date.now() - offlineSince >= SERVER_UNREACHABLE_DELAY_MS;
 
   if (networkReachable === true && serverUnreachableForAWhile) {
     return { kind: 'serverUnreachable' };

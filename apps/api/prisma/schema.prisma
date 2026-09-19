@@ -31,10 +31,11 @@ model SessionPlayer {
   deviceId    String?
   joinedAt    DateTime @default(now())
   completedAt DateTime?
-  session     Session  @relation(fields: [sessionId], references: [id])
+  session     Session  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
 
   @@unique([sessionId, role])
   @@unique([sessionId, playerId])
+  @@index([deviceId])
 }
 
 model Question {
@@ -43,7 +44,7 @@ model Question {
   text      String
   type      String  @default("mcq") // mcq | text
   options   String? // JSON array string for MCQ options
-  session   Session @relation(fields: [sessionId], references: [id])
+  session   Session @relation(fields: [sessionId], references: [id], onDelete: Cascade)
 }
 
 model Answer {
@@ -52,7 +53,7 @@ model Answer {
   questionId Int
   playerId   String
   answer     String
-  session    Session @relation(fields: [sessionId], references: [id])
+  session    Session @relation(fields: [sessionId], references: [id], onDelete: Cascade)
 
   @@unique([sessionId, questionId, playerId])
 }
@@ -64,5 +65,18 @@ model Result {
   summary     String
   strengths   String  // JSON array string
   differences String  // JSON array string
-  session     Session @relation(fields: [sessionId], references: [id])
+  session     Session @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+}
+
+model JoinRateLimit {
+  id             String   @id @default(uuid())
+  key            String
+  scope          String // 'device' | 'ip'
+  failureCount   Int      @default(0)
+  firstFailureAt DateTime @default(now())
+  lastFailureAt  DateTime @default(now())
+  expiresAt      DateTime
+
+  @@unique([key, scope])
+  @@index([expiresAt])
 }

@@ -12,9 +12,12 @@ export function PrivacyOverlay() {
   useEffect(() => {
     setVisible(AppState.currentState !== 'active');
 
-    const subscription = AppState.addEventListener('change', (next: AppStateStatus) => {
-      setVisible(next !== 'active');
-    });
+    const subscription = AppState.addEventListener(
+      'change',
+      (next: AppStateStatus) => {
+        setVisible(next !== 'active');
+      },
+    );
 
     return () => subscription.remove();
   }, []);

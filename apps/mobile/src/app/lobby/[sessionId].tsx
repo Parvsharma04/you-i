@@ -267,7 +267,11 @@ function LobbyScreen() {
 
           {status === 'needsCode' && (
             <View className="items-center gap-6">
-              <Text variant="display-md" color="primary" className="text-center">
+              <Text
+                variant="display-md"
+                color="primary"
+                className="text-center"
+              >
                 ENTER CODE ON HOME SCREEN
               </Text>
               <Text variant="body" color="secondary" className="text-center">

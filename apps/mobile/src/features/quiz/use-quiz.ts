@@ -196,7 +196,13 @@ export function useQuiz(sessionId: string, playerId: string) {
       markLeaving();
       router.replace(`/results/${sessionId}`);
     }
-  }, [confirmedComplete, gameState?.partner.complete, router, sessionId, markLeaving]);
+  }, [
+    confirmedComplete,
+    gameState?.partner.complete,
+    router,
+    sessionId,
+    markLeaving,
+  ]);
 
   // Polling fallback for the waiting state or when the socket is offline.
   useEffect(() => {

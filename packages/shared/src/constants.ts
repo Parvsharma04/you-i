@@ -57,3 +57,10 @@ export type ScoreRank = keyof typeof SCORE_RANK_THRESHOLDS | 'F';
  * legacy body-based `playerId` field for authenticated routes.
  */
 export const PLAYER_ID_HEADER = 'x-player-id';
+
+/**
+ * Header carrying the caller's stable device id. Used to identify the host
+ * for lobby-management routes and to resume a session if a device re-joins
+ * after force-quit. Stored only in `SessionPlayer.deviceId`.
+ */
+export const DEVICE_ID_HEADER = 'x-device-id';

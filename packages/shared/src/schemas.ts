@@ -19,6 +19,9 @@ export const sessionStatusSchema = z.enum([
   SESSION_STATUSES.ABANDONED,
 ]);
 
+export const playerRoleSchema = z.enum(['player1', 'player2']);
+export type PlayerRole = z.infer<typeof playerRoleSchema>;
+
 // ── POST /session/create ────────────────────────────────────────────────
 
 export const createSessionRequestSchema = z.object({
@@ -39,14 +42,38 @@ export type CreateSessionResponse = z.infer<
 
 // ── POST /session/join ──────────────────────────────────────────────────
 
-export const joinSessionRequestSchema = z.object({
-  code: z.string(),
-});
+export const JOIN_SESSION_ERROR_CODES = [
+  'CODE_NOT_FOUND',
+  'CODE_EXPIRED',
+  'SESSION_FULL',
+  'SESSION_FINISHED',
+  'ALREADY_JOINED',
+  'SELF_JOIN',
+  'RATE_LIMITED',
+] as const;
+
+export const joinSessionErrorCodeSchema = z.enum(JOIN_SESSION_ERROR_CODES);
+export type JoinSessionErrorCode = z.infer<typeof joinSessionErrorCodeSchema>;
+
+export const joinSessionRequestSchema = z
+  .object({
+    code: z.string().min(1).optional(),
+    sessionId: z.string().min(1).optional(),
+    passAndPlay: z.boolean().optional(),
+  })
+  .refine(
+    (data) => data.code !== undefined || data.sessionId !== undefined,
+    {
+      message: 'Either code or sessionId is required',
+      path: ['code'],
+    },
+  );
 export type JoinSessionRequest = z.infer<typeof joinSessionRequestSchema>;
 
 export const joinSessionResponseSchema = z.object({
   sessionId: z.string(),
   playerId: z.string(),
+  role: playerRoleSchema,
   category: categorySchema,
   questionCount: z.number().int(),
 });
@@ -63,6 +90,33 @@ export const sessionSchema = z.object({
   createdAt: z.string(),
 });
 export type SessionResponse = z.infer<typeof sessionSchema>;
+
+// ── POST /session/:id/regenerate-code ────────────────────────────────────
+
+export const regenerateCodeResponseSchema = z.object({
+  code: z.string(),
+  expiresAt: z.string(),
+});
+export type RegenerateCodeResponse = z.infer<
+  typeof regenerateCodeResponseSchema
+>;
+
+// ── GET /sessions/mine ───────────────────────────────────────────────────
+
+export const mySessionSchema = z.object({
+  id: z.string(),
+  category: categorySchema,
+  status: sessionStatusSchema,
+  statusLabel: z.string(),
+  questionCount: z.number().int(),
+  role: playerRoleSchema,
+  partnerJoined: z.boolean(),
+  lastActivityAt: z.string(),
+  createdAt: z.string(),
+});
+export const mySessionsResponseSchema = z.array(mySessionSchema);
+export type MySession = z.infer<typeof mySessionSchema>;
+export type MySessionsResponse = z.infer<typeof mySessionsResponseSchema>;
 
 // ── GET /question/:sessionId ─────────────────────────────────────────────
 
@@ -148,9 +202,6 @@ export type GetResultResponse = z.infer<typeof getResultResponseSchema>;
 // ── GET /session/:sessionId/state ────────────────────────────────────────
 // Full rehydration payload for a client reconnecting/foregrounding: replaces
 // separate session + questions + answers + result calls with one round trip.
-
-export const playerRoleSchema = z.enum(['player1', 'player2']);
-export type PlayerRole = z.infer<typeof playerRoleSchema>;
 
 export const sessionStateResponseSchema = z.object({
   session: z.object({

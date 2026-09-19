@@ -1,8 +1,10 @@
 import { z } from 'zod';
 
 import { env } from './env';
+import { getOrCreateDeviceId } from './storage';
 import {
   PLAYER_ID_HEADER,
+  DEVICE_ID_HEADER,
   createSessionRequestSchema,
   createSessionResponseSchema,
   joinSessionRequestSchema,
@@ -65,6 +67,7 @@ interface RequestOptions<TResponse> {
   path: string;
   body?: unknown;
   playerId?: string;
+  deviceId?: string;
   schema: z.ZodSchema<TResponse>;
   timeoutMs?: number;
 }
@@ -104,6 +107,7 @@ async function request<TResponse>({
   path,
   body,
   playerId,
+  deviceId,
   schema,
   timeoutMs = DEFAULT_TIMEOUT_MS,
 }: RequestOptions<TResponse>): Promise<TResponse> {
@@ -113,6 +117,9 @@ async function request<TResponse>({
   };
   if (playerId) {
     headers[PLAYER_ID_HEADER] = playerId;
+  }
+  if (deviceId) {
+    headers[DEVICE_ID_HEADER] = deviceId;
   }
 
   const init: RequestInit = {
@@ -185,10 +192,12 @@ export async function createSession(
   body: CreateSessionRequest,
 ): Promise<CreateSessionResponse> {
   createSessionRequestSchema.parse(body);
+  const deviceId = await getOrCreateDeviceId();
   return request({
     method: 'POST',
     path: '/session/create',
     body,
+    deviceId,
     schema: createSessionResponseSchema,
   });
 }
@@ -198,10 +207,12 @@ export async function joinSessionByCode(
 ): Promise<JoinSessionResponse> {
   const body: JoinSessionRequest = { code };
   joinSessionRequestSchema.parse(body);
+  const deviceId = await getOrCreateDeviceId();
   return request({
     method: 'POST',
     path: '/session/join',
     body,
+    deviceId,
     schema: joinSessionResponseSchema,
   });
 }

@@ -1,5 +1,6 @@
 import { Controller, Get, ServiceUnavailableException } from '@nestjs/common';
 import { SkipThrottle } from '@nestjs/throttler';
+import { register } from 'prom-client';
 import { PrismaService } from '../prisma/prisma.service';
 
 interface HealthResponse {
@@ -26,5 +27,10 @@ export class HealthController {
         database: 'down',
       });
     }
+  }
+
+  @Get('metrics')
+  async metrics(): Promise<string> {
+    return register.metrics();
   }
 }

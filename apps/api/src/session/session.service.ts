@@ -4,6 +4,7 @@ import {
   BadRequestException,
   ForbiddenException,
 } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { v4 as uuidv4 } from 'uuid';
 import { CreateSessionDto, JoinSessionDto } from './session.dto';
@@ -13,16 +14,29 @@ import { normalizeRoomCode } from './code-normalizer';
 import {
   Category,
   CreateSessionResponse,
+  JoinSessionErrorCode,
   JoinSessionResponse,
+  MySessionsResponse,
   PlayerRole,
   QUESTION_TYPES,
   QuestionType,
+  RegenerateCodeResponse,
   Result,
   SESSION_STATUSES,
   SessionStateResponse,
 } from '@youandi/shared';
+import {
+  JoinRateLimitService,
+  JoinRateLimitException,
+} from './join-rate-limit.service';
+import { JoinSessionException } from './join-session.exception';
 
 const CODE_TTL_MS = 10 * 60 * 1000;
+const RECENT_SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+
+function isLegacySessionIdJoinEnabled(): boolean {
+  return process.env.ALLOW_LEGACY_SESSION_ID_JOIN_BODY !== 'false';
+}
 
 @Injectable()
 export class SessionService {
@@ -30,9 +44,13 @@ export class SessionService {
     private readonly prisma: PrismaService,
     private readonly llmService: LlmService,
     private readonly codeGenerator: CodeGeneratorService,
+    private readonly rateLimit: JoinRateLimitService,
   ) {}
 
-  async create(dto: CreateSessionDto): Promise<CreateSessionResponse> {
+  async create(
+    dto: CreateSessionDto,
+    deviceId: string,
+  ): Promise<CreateSessionResponse> {
     const player1Id = uuidv4();
     const now = new Date();
     const codeExpiresAt = new Date(now.getTime() + CODE_TTL_MS);
@@ -48,6 +66,7 @@ export class SessionService {
           create: {
             playerId: player1Id,
             role: 'player1',
+            deviceId,
             joinedAt: now,
           },
         },
@@ -426,10 +445,48 @@ IMPORTANT: Respond ONLY with valid JSON in this exact format, no other text:
     return result;
   }
 
-  async join(dto: JoinSessionDto): Promise<JoinSessionResponse> {
-    const code = normalizeRoomCode(dto.code);
+  async join(
+    dto: JoinSessionDto,
+    deviceId: string,
+    ip: string | undefined,
+  ): Promise<JoinSessionResponse> {
+    if (dto.sessionId) {
+      if (!isLegacySessionIdJoinEnabled()) {
+        throw new BadRequestException(
+          'sessionId body is deprecated; send a room code',
+        );
+      }
+      return this.joinBySessionId(dto.sessionId, deviceId, ip);
+    }
+
+    return this.joinByCode(
+      dto.code ?? '',
+      dto.passAndPlay ?? false,
+      deviceId,
+      ip,
+    );
+  }
+
+  private async joinByCode(
+    rawCode: string,
+    passAndPlay: boolean,
+    deviceId: string,
+    ip: string | undefined,
+  ): Promise<JoinSessionResponse> {
+    try {
+      await this.rateLimit.assertNotRateLimited(deviceId, ip);
+    } catch (error) {
+      if (error instanceof JoinRateLimitException) {
+        this.rateLimit.recordMetric('RATE_LIMITED');
+        throw new JoinSessionException('RATE_LIMITED');
+      }
+      throw error;
+    }
+
+    const code = normalizeRoomCode(rawCode);
     if (code.length !== 6) {
-      throw new BadRequestException('Room code must be 6 characters');
+      await this.rateLimit.recordFailure(deviceId, ip, 'CODE_NOT_FOUND');
+      throw new JoinSessionException('CODE_NOT_FOUND');
     }
 
     const now = new Date();
@@ -440,47 +497,397 @@ IMPORTANT: Respond ONLY with valid JSON in this exact format, no other text:
     });
 
     if (!session) {
-      throw new NotFoundException('Session not found');
+      await this.rateLimit.recordFailure(deviceId, ip, 'CODE_NOT_FOUND');
+      throw new JoinSessionException('CODE_NOT_FOUND');
     }
 
-    if (session.status !== SESSION_STATUSES.WAITING) {
-      throw new BadRequestException('Session is no longer joinable');
+    const existingPlayer = session.players.find((p) => p.deviceId === deviceId);
+    if (existingPlayer) {
+      if (existingPlayer.role === 'player1' && !passAndPlay) {
+        await this.rateLimit.recordFailure(deviceId, ip, 'SELF_JOIN');
+        throw new JoinSessionException('SELF_JOIN');
+      }
+      if (existingPlayer.role === 'player2') {
+        await this.rateLimit.clearFailures(deviceId, ip);
+        return this.buildJoinResponse(session, existingPlayer);
+      }
     }
 
-    if (session.codeExpiresAt && session.codeExpiresAt < now) {
-      throw new BadRequestException('Room code has expired');
+    const player1 = session.players.find((p) => p.role === 'player1');
+    if (player1?.deviceId === deviceId && !passAndPlay) {
+      await this.rateLimit.recordFailure(deviceId, ip, 'SELF_JOIN');
+      throw new JoinSessionException('SELF_JOIN');
     }
 
-    const existingPlayer2 = session.players.find((p) => p.role === 'player2');
-    if (existingPlayer2) {
-      throw new BadRequestException('Session is already full');
+    const preflightReason = this.classifyJoinFailure(
+      session,
+      deviceId,
+      passAndPlay,
+    );
+    if (preflightReason) {
+      await this.rateLimit.recordFailure(deviceId, ip, preflightReason);
+      throw new JoinSessionException(preflightReason);
     }
 
     const player2Id = uuidv4();
-    await this.prisma.session.update({
+    const [claimed] = await this.prisma.$queryRaw<
+      Array<{
+        id: string;
+        category: string;
+        questionCount: number;
+        playerId: string;
+      }>
+    >(
+      Prisma.sql`
+        WITH candidate AS (
+          SELECT s.id
+          FROM "Session" s
+          WHERE s.code = ${code}
+            AND s.status = ${SESSION_STATUSES.WAITING}
+            AND s."codeExpiresAt" > ${now}
+            AND NOT EXISTS (
+              SELECT 1 FROM "SessionPlayer" p
+              WHERE p."sessionId" = s.id AND p.role = 'player2'
+            )
+        ),
+        new_player AS (
+          INSERT INTO "SessionPlayer" (
+            "id", "sessionId", "playerId", "role", "deviceId", "joinedAt"
+          )
+          SELECT gen_random_uuid(), c.id, ${player2Id}, 'player2', ${deviceId}, ${now}
+          FROM candidate c
+          ON CONFLICT ("sessionId", role) DO NOTHING
+          RETURNING "sessionId", "playerId"
+        ),
+        updated_session AS (
+          UPDATE "Session" s
+          SET status = ${SESSION_STATUSES.ACTIVE},
+              code = NULL,
+              "codeExpiresAt" = NULL,
+              "startedAt" = ${now},
+              "lastActivityAt" = ${now}
+          FROM new_player np
+          WHERE s.id = np."sessionId"
+          RETURNING s.id, s.category, s."questionCount", np."playerId"
+        )
+        SELECT * FROM updated_session
+      `,
+    );
+
+    if (claimed) {
+      await this.rateLimit.clearFailures(deviceId, ip);
+      return {
+        sessionId: claimed.id,
+        playerId: claimed.playerId,
+        role: 'player2',
+        category: claimed.category as Category,
+        questionCount: claimed.questionCount,
+      };
+    }
+
+    // Lost the race or the state changed between the read and the claim.
+    // Re-query by id so we can return a specific reason even if the code
+    // was just nulled.
+    const current = await this.prisma.session.findUnique({
       where: { id: session.id },
-      data: {
-        status: SESSION_STATUSES.ACTIVE,
-        code: null,
-        codeExpiresAt: null,
-        startedAt: now,
-        lastActivityAt: now,
-        players: {
-          create: {
-            playerId: player2Id,
-            role: 'player2',
-            joinedAt: now,
-          },
-        },
-      },
+      include: { players: true },
     });
 
+    if (!current) {
+      await this.rateLimit.recordFailure(deviceId, ip, 'CODE_NOT_FOUND');
+      throw new JoinSessionException('CODE_NOT_FOUND');
+    }
+
+    const racePlayer = current.players.find((p) => p.deviceId === deviceId);
+    if (racePlayer) {
+      await this.rateLimit.clearFailures(deviceId, ip);
+      return this.buildJoinResponse(current, racePlayer);
+    }
+
+    const raceReason = this.classifyJoinFailure(current, deviceId, passAndPlay);
+    const reason: JoinSessionErrorCode = raceReason ?? 'SESSION_FULL';
+    await this.rateLimit.recordFailure(deviceId, ip, reason);
+    throw new JoinSessionException(reason);
+  }
+
+  private async joinBySessionId(
+    sessionId: string,
+    deviceId: string,
+    ip: string | undefined,
+  ): Promise<JoinSessionResponse> {
+    try {
+      await this.rateLimit.assertNotRateLimited(deviceId, ip);
+    } catch (error) {
+      if (error instanceof JoinRateLimitException) {
+        this.rateLimit.recordMetric('RATE_LIMITED');
+        throw new JoinSessionException('RATE_LIMITED');
+      }
+      throw error;
+    }
+
+    const now = new Date();
+
+    const session = await this.prisma.session.findUnique({
+      where: { id: sessionId },
+      include: { players: true },
+    });
+
+    if (!session) {
+      await this.rateLimit.recordFailure(deviceId, ip, 'CODE_NOT_FOUND');
+      throw new NotFoundException('Session not found');
+    }
+
+    const existingPlayer = session.players.find((p) => p.deviceId === deviceId);
+    if (existingPlayer) {
+      await this.rateLimit.clearFailures(deviceId, ip);
+      return this.buildJoinResponse(session, existingPlayer);
+    }
+
+    const preflightReason = this.classifyJoinFailure(session, deviceId, false);
+    if (preflightReason) {
+      await this.rateLimit.recordFailure(deviceId, ip, preflightReason);
+      throw new JoinSessionException(preflightReason);
+    }
+
+    const player2Id = uuidv4();
+    const [claimed] = await this.prisma.$queryRaw<
+      Array<{
+        id: string;
+        category: string;
+        questionCount: number;
+        playerId: string;
+      }>
+    >(
+      Prisma.sql`
+        WITH candidate AS (
+          SELECT s.id
+          FROM "Session" s
+          WHERE s.id = ${sessionId}
+            AND s.status = ${SESSION_STATUSES.WAITING}
+            AND NOT EXISTS (
+              SELECT 1 FROM "SessionPlayer" p
+              WHERE p."sessionId" = s.id AND p.role = 'player2'
+            )
+        ),
+        new_player AS (
+          INSERT INTO "SessionPlayer" (
+            "id", "sessionId", "playerId", "role", "deviceId", "joinedAt"
+          )
+          SELECT gen_random_uuid(), c.id, ${player2Id}, 'player2', ${deviceId}, ${now}
+          FROM candidate c
+          ON CONFLICT ("sessionId", role) DO NOTHING
+          RETURNING "sessionId", "playerId"
+        ),
+        updated_session AS (
+          UPDATE "Session" s
+          SET status = ${SESSION_STATUSES.ACTIVE},
+              code = NULL,
+              "codeExpiresAt" = NULL,
+              "startedAt" = ${now},
+              "lastActivityAt" = ${now}
+          FROM new_player np
+          WHERE s.id = np."sessionId"
+          RETURNING s.id, s.category, s."questionCount", np."playerId"
+        )
+        SELECT * FROM updated_session
+      `,
+    );
+
+    if (claimed) {
+      await this.rateLimit.clearFailures(deviceId, ip);
+      return {
+        sessionId: claimed.id,
+        playerId: claimed.playerId,
+        role: 'player2',
+        category: claimed.category as Category,
+        questionCount: claimed.questionCount,
+      };
+    }
+
+    const current = await this.prisma.session.findUnique({
+      where: { id: sessionId },
+      include: { players: true },
+    });
+
+    if (!current) {
+      throw new NotFoundException('Session not found');
+    }
+
+    const racePlayer = current.players.find((p) => p.deviceId === deviceId);
+    if (racePlayer) {
+      await this.rateLimit.clearFailures(deviceId, ip);
+      return this.buildJoinResponse(current, racePlayer);
+    }
+
+    const raceReason = this.classifyJoinFailure(current, deviceId, false);
+    const reason: JoinSessionErrorCode = raceReason ?? 'SESSION_FULL';
+    await this.rateLimit.recordFailure(deviceId, ip, reason);
+    throw new JoinSessionException(reason);
+  }
+
+  private classifyJoinFailure(
+    session: {
+      status: string;
+      codeExpiresAt: Date | null;
+      players: { role: string; deviceId: string | null }[];
+    },
+    deviceId: string,
+    passAndPlay: boolean,
+  ): JoinSessionErrorCode | null {
+    const now = new Date();
+
+    if (session.status !== SESSION_STATUSES.WAITING) {
+      if (session.status === SESSION_STATUSES.ACTIVE) {
+        const player2 = session.players.find((p) => p.role === 'player2');
+        if (player2) {
+          return player2.deviceId === deviceId
+            ? 'ALREADY_JOINED'
+            : 'SESSION_FULL';
+        }
+        return 'SESSION_FULL';
+      }
+      return 'SESSION_FINISHED';
+    }
+
+    if (session.codeExpiresAt && session.codeExpiresAt < now) {
+      return 'CODE_EXPIRED';
+    }
+
+    const player1 = session.players.find((p) => p.role === 'player1');
+    if (player1?.deviceId === deviceId && !passAndPlay) {
+      return 'SELF_JOIN';
+    }
+
+    const player2 = session.players.find((p) => p.role === 'player2');
+    if (player2) {
+      return player2.deviceId === deviceId ? 'ALREADY_JOINED' : 'SESSION_FULL';
+    }
+
+    return null;
+  }
+
+  private buildJoinResponse(
+    session: { id: string; category: string; questionCount: number },
+    player: { playerId: string; role: string },
+  ): JoinSessionResponse {
     return {
       sessionId: session.id,
-      playerId: player2Id,
+      playerId: player.playerId,
+      role: player.role as PlayerRole,
       category: session.category as Category,
       questionCount: session.questionCount,
     };
+  }
+
+  async regenerateCode(
+    sessionId: string,
+    deviceId: string,
+  ): Promise<RegenerateCodeResponse> {
+    const session = await this.prisma.session.findUnique({
+      where: { id: sessionId },
+      include: { players: true },
+    });
+
+    if (!session) {
+      throw new NotFoundException('Session not found');
+    }
+
+    const player1 = session.players.find((p) => p.role === 'player1');
+    if (player1?.deviceId !== deviceId) {
+      throw new BadRequestException('Only the host can regenerate the code');
+    }
+
+    if (session.status !== SESSION_STATUSES.WAITING) {
+      throw new BadRequestException(
+        'Code can only be regenerated while waiting',
+      );
+    }
+
+    const code = await this.codeGenerator.generateAndAssign(sessionId);
+    const expiresAt = new Date(Date.now() + CODE_TTL_MS);
+
+    await this.prisma.session.update({
+      where: { id: sessionId },
+      data: {
+        codeExpiresAt: expiresAt,
+        lastActivityAt: new Date(),
+      },
+    });
+
+    return { code, expiresAt: expiresAt.toISOString() };
+  }
+
+  async deleteSession(sessionId: string, deviceId: string): Promise<void> {
+    const session = await this.prisma.session.findUnique({
+      where: { id: sessionId },
+      include: { players: true },
+    });
+
+    if (!session) {
+      throw new NotFoundException('Session not found');
+    }
+
+    const player1 = session.players.find((p) => p.role === 'player1');
+    if (player1?.deviceId !== deviceId) {
+      throw new BadRequestException('Only the host can cancel the lobby');
+    }
+
+    if (session.status !== SESSION_STATUSES.WAITING) {
+      throw new BadRequestException(
+        'Lobby can only be cancelled while waiting',
+      );
+    }
+
+    await this.prisma.session.delete({ where: { id: sessionId } });
+  }
+
+  async findMine(deviceId: string): Promise<MySessionsResponse> {
+    const now = new Date();
+    const recentThreshold = new Date(now.getTime() - RECENT_SESSION_TTL_MS);
+
+    const sessions = await this.prisma.session.findMany({
+      where: {
+        players: { some: { deviceId } },
+        status: { not: SESSION_STATUSES.ABANDONED },
+        lastActivityAt: { gte: recentThreshold },
+      },
+      include: { players: true },
+      orderBy: { lastActivityAt: 'desc' },
+    });
+
+    return sessions.map((session) => {
+      const player = session.players.find((p) => p.deviceId === deviceId)!;
+      const partner = session.players.find((p) => p.role !== player.role);
+
+      return {
+        id: session.id,
+        category: session.category as Category,
+        status: session.status as SessionStateResponse['session']['status'],
+        statusLabel: this.statusLabel(session.status),
+        questionCount: session.questionCount,
+        role: player.role as PlayerRole,
+        partnerJoined: !!partner,
+        lastActivityAt: session.lastActivityAt.toISOString(),
+        createdAt: session.createdAt.toISOString(),
+      };
+    });
+  }
+
+  private statusLabel(status: string): string {
+    switch (status) {
+      case SESSION_STATUSES.WAITING:
+        return 'Waiting for opponent';
+      case SESSION_STATUSES.ACTIVE:
+        return 'In progress';
+      case SESSION_STATUSES.COMPLETED:
+        return 'Finished';
+      case SESSION_STATUSES.EXPIRED:
+        return 'Expired';
+      case SESSION_STATUSES.ABANDONED:
+        return 'Abandoned';
+      default:
+        return 'Unknown';
+    }
   }
 
   async getSession(sessionId: string) {

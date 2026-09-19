@@ -28,8 +28,15 @@ export function ConnectivityBanner() {
       }
       className={`items-center justify-center px-4 py-2 ${isNoInternet ? 'bg-accent' : 'bg-text-muted'}`}
     >
-      <Text variant="body-sm" bold color="white" className="text-center uppercase tracking-widest">
-        {isNoInternet ? 'NO INTERNET — CHECK CONNECTION' : 'SERVER UNREACHABLE — RETRYING'}
+      <Text
+        variant="body-sm"
+        bold
+        color="white"
+        className="text-center uppercase tracking-widest"
+      >
+        {isNoInternet
+          ? 'NO INTERNET — CHECK CONNECTION'
+          : 'SERVER UNREACHABLE — RETRYING'}
       </Text>
     </SafeAreaView>
   );

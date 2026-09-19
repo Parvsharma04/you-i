@@ -1,9 +1,15 @@
+import { getDeviceId } from './device-id';
+
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
+const DEVICE_ID_HEADER = 'x-device-id';
+
 async function fetchAPI<T>(endpoint: string, options?: RequestInit): Promise<T> {
+  const deviceId = getDeviceId();
   const res = await fetch(`${API_URL}${endpoint}`, {
     headers: {
       'Content-Type': 'application/json',
+      ...(deviceId ? { [DEVICE_ID_HEADER]: deviceId } : {}),
       ...options?.headers,
     },
     ...options,

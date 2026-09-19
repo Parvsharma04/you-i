@@ -17,9 +17,7 @@ export class AnswerService {
       throw new BadRequestException('Session not found');
     }
 
-    const player = session.players.find(
-      (p) => p.playerId === dto.playerId,
-    );
+    const player = session.players.find((p) => p.playerId === dto.playerId);
     if (!player) {
       throw new BadRequestException('Player does not belong to this session');
     }

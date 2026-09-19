@@ -23,6 +23,9 @@ const envSchema = z
     ALLOWED_ORIGINS: z.string().optional(),
     FRONTEND_URL: z.string().optional(),
     ALLOW_LEGACY_PLAYER_ID_BODY: z.enum(['true', 'false']).default('true'),
+    ALLOW_LEGACY_SESSION_ID_JOIN_BODY: z
+      .enum(['true', 'false'])
+      .default('true'),
     LLM_PROVIDER: z.enum(['gemini', 'groq']).default('gemini'),
 
     // --- Conditionally required, checked below based on LLM_PROVIDER ---
