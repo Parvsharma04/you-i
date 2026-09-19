@@ -851,13 +851,21 @@ IMPORTANT: Respond ONLY with valid JSON in this exact format, no other text:
         status: { not: SESSION_STATUSES.ABANDONED },
         lastActivityAt: { gte: recentThreshold },
       },
-      include: { players: true },
+      include: { players: true, answers: true },
       orderBy: { lastActivityAt: 'desc' },
     });
 
     return sessions.map((session) => {
       const player = session.players.find((p) => p.deviceId === deviceId)!;
       const partner = session.players.find((p) => p.role !== player.role);
+      const totalExpected = session.questionCount;
+
+      const yourAnswerCount = session.answers.filter(
+        (a) => a.playerId === player.playerId,
+      ).length;
+      const partnerAnswerCount = session.answers.filter(
+        (a) => a.playerId === partner?.playerId,
+      ).length;
 
       return {
         id: session.id,
@@ -866,7 +874,11 @@ IMPORTANT: Respond ONLY with valid JSON in this exact format, no other text:
         statusLabel: this.statusLabel(session.status),
         questionCount: session.questionCount,
         role: player.role as PlayerRole,
+        playerId: player.playerId,
         partnerJoined: !!partner,
+        yourAnswerCount,
+        partnerAnswerCount,
+        totalExpected,
         lastActivityAt: session.lastActivityAt.toISOString(),
         createdAt: session.createdAt.toISOString(),
       };

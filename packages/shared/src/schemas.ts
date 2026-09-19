@@ -87,6 +87,7 @@ export const sessionSchema = z.object({
   questionCount: z.number().int(),
   status: sessionStatusSchema,
   code: z.string().nullable(),
+  codeExpiresAt: z.string().nullable().optional(),
   createdAt: z.string(),
 });
 export type SessionResponse = z.infer<typeof sessionSchema>;
@@ -110,7 +111,11 @@ export const mySessionSchema = z.object({
   statusLabel: z.string(),
   questionCount: z.number().int(),
   role: playerRoleSchema,
+  playerId: z.string(),
   partnerJoined: z.boolean(),
+  yourAnswerCount: z.number().int(),
+  partnerAnswerCount: z.number().int(),
+  totalExpected: z.number().int(),
   lastActivityAt: z.string(),
   createdAt: z.string(),
 });

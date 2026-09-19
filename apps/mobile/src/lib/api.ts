@@ -11,6 +11,8 @@ import {
   joinSessionResponseSchema,
   sessionSchema,
   sessionStateResponseSchema,
+  mySessionsResponseSchema,
+  regenerateCodeResponseSchema,
   questionsResponseSchema,
   submitAnswerRequestSchema,
   answerSchema,
@@ -24,6 +26,8 @@ import {
   type JoinSessionResponse,
   type SessionResponse,
   type SessionStateResponse,
+  type MySessionsResponse,
+  type RegenerateCodeResponse,
   type QuestionsResponse,
   type SubmitAnswerRequest,
   type Answer,
@@ -63,7 +67,7 @@ export class ApiError extends Error {
 }
 
 interface RequestOptions<TResponse> {
-  method: 'GET' | 'POST';
+  method: 'GET' | 'POST' | 'DELETE';
   path: string;
   body?: unknown;
   playerId?: string;
@@ -300,5 +304,37 @@ export async function getResult(
     path: `/result/${encodeURIComponent(sessionId)}`,
     playerId,
     schema: getResultResponseSchema,
+  });
+}
+
+export async function getMySessions(): Promise<MySessionsResponse> {
+  const deviceId = await getOrCreateDeviceId();
+  return request({
+    method: 'GET',
+    path: '/sessions/mine',
+    deviceId,
+    schema: mySessionsResponseSchema,
+  });
+}
+
+export async function regenerateCode(
+  sessionId: string,
+): Promise<RegenerateCodeResponse> {
+  const deviceId = await getOrCreateDeviceId();
+  return request({
+    method: 'POST',
+    path: `/session/${encodeURIComponent(sessionId)}/regenerate-code`,
+    deviceId,
+    schema: regenerateCodeResponseSchema,
+  });
+}
+
+export async function deleteSession(sessionId: string): Promise<void> {
+  const deviceId = await getOrCreateDeviceId();
+  await request({
+    method: 'DELETE',
+    path: `/session/${encodeURIComponent(sessionId)}`,
+    deviceId,
+    schema: z.object({ deleted: z.boolean() }),
   });
 }

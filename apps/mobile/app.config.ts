@@ -50,6 +50,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     ...config.ios,
     icon: './assets/expo.icon',
     bundleIdentifier: `${IOS_BUNDLE_IDENTIFIER}${BUNDLE_IDENTIFIER_SUFFIX}`,
+    associatedDomains: [`applinks:${WEB_HOST}`],
   },
   android: {
     ...config.android,
@@ -81,6 +82,11 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
             scheme: 'https',
             host: WEB_HOST,
             pathPrefix: '/lobby',
+          },
+          {
+            scheme: 'https',
+            host: WEB_HOST,
+            pathPrefix: '/j',
           },
         ],
         category: ['BROWSABLE', 'DEFAULT'],
