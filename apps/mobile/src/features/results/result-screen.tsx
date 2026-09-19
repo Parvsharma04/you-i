@@ -33,6 +33,7 @@ const AnimatedTextInput = Animated.createAnimatedComponent(TextInput);
 
 type ResultScreenProps = {
   record: SessionRecord;
+  mode?: 'multiplayer' | 'passAndPlay';
 };
 
 function getRank(score: number): ScoreRank {
@@ -111,11 +112,15 @@ function AnimatedScore({ finalScore }: { finalScore: number }) {
   );
 }
 
-export default function ResultScreen({ record }: ResultScreenProps) {
+export default function ResultScreen({
+  record,
+  mode = 'multiplayer',
+}: ResultScreenProps) {
   const router = useRouter();
   const { result, status, error, retry } = useResult(
     record.sessionId,
     record.playerId,
+    { enableSocket: mode !== 'passAndPlay' },
   );
   const { fontsLoaded } = useAppFonts();
   const {
@@ -228,6 +233,12 @@ export default function ResultScreen({ record }: ResultScreenProps) {
             <Text variant="body-sm" color="muted">
               {formatCategory(record.category)}
             </Text>
+            {mode === 'passAndPlay' && (
+              <Text variant="body-sm" color="secondary">
+                {record.player1Name ?? 'Player 1'} &{' '}
+                {record.player2Name ?? 'Player 2'}
+              </Text>
+            )}
           </View>
 
           <Card>

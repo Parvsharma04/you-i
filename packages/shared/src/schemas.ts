@@ -116,6 +116,7 @@ export const mySessionSchema = z.object({
   yourAnswerCount: z.number().int(),
   partnerAnswerCount: z.number().int(),
   totalExpected: z.number().int(),
+  passAndPlay: z.boolean(),
   lastActivityAt: z.string(),
   createdAt: z.string(),
 });

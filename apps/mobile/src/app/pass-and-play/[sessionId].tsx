@@ -4,10 +4,10 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { ErrorBoundary } from '@/components/error-boundary';
 import { LoadingView } from '@/components/loading-view';
 import { Screen } from '@/components/ui/screen';
-import { QuizScreen } from '@/features/quiz/quiz-screen';
+import PassAndPlayScreen from '@/features/pass-and-play/pass-and-play-screen';
 import { getSession, type SessionRecord } from '@/lib/storage';
 
-function QuizRouteInner() {
+function PassAndPlayRouteInner() {
   const router = useRouter();
   const rawParams = useLocalSearchParams<{ sessionId: string }>();
   const sessionId = Array.isArray(rawParams.sessionId)
@@ -23,12 +23,8 @@ function QuizRouteInner() {
     let mounted = true;
     getSession(sessionId).then((stored) => {
       if (!mounted) return;
-      if (!stored) {
-        router.replace(`/lobby/${sessionId}`);
-        return;
-      }
-      if (stored.passAndPlay) {
-        router.replace(`/pass-and-play/${sessionId}`);
+      if (!stored || !stored.passAndPlay) {
+        router.replace('/');
         return;
       }
       setRecord(stored);
@@ -55,19 +51,13 @@ function QuizRouteInner() {
     return null;
   }
 
-  return (
-    <QuizScreen
-      sessionId={sessionId}
-      playerId={record.playerId}
-      role={record.role}
-    />
-  );
+  return <PassAndPlayScreen sessionId={sessionId} record={record} />;
 }
 
-export default function QuizRoute() {
+export default function PassAndPlayRoute() {
   return (
-    <ErrorBoundary context={{ route: 'quiz' }}>
-      <QuizRouteInner />
+    <ErrorBoundary context={{ route: 'pass-and-play' }}>
+      <PassAndPlayRouteInner />
     </ErrorBoundary>
   );
 }

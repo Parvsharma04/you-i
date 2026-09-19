@@ -10,22 +10,17 @@ import {
   useLeavingIntentionally,
 } from '@/hooks/useInterceptBack';
 import {
-  ApiError,
   NetworkError,
   TimeoutError,
   getSessionState,
   submitAnswer,
 } from '@/lib/api';
+import { normalizeQuizError, type QuizError } from '@/lib/quiz-error';
 
 export const MAX_TEXT_LENGTH = 500;
 
 const POLL_INTERVAL_MS = 5000;
 const FLUSH_INTERVAL_MS = 3000;
-
-type QuizError = {
-  kind: 'notFound' | 'network' | 'unknown';
-  message: string;
-};
 
 export function useQuiz(sessionId: string, playerId: string) {
   const router = useRouter();
@@ -69,7 +64,7 @@ export function useQuiz(sessionId: string, playerId: string) {
         setError(null);
       } catch (err) {
         if (!mounted) return;
-        setError(normalizeError(err));
+        setError(normalizeQuizError(err));
       } finally {
         if (mounted) setIsLoading(false);
       }
@@ -265,7 +260,7 @@ export function useQuiz(sessionId: string, playerId: string) {
         setSelectedOption(null);
         setTextAnswer('');
       } else {
-        setError(normalizeError(err));
+        setError(normalizeQuizError(err));
       }
     } finally {
       setIsSubmitting(false);
@@ -297,7 +292,7 @@ export function useQuiz(sessionId: string, playerId: string) {
       const state = await getSessionState(sessionId, playerId);
       setQuestions(state.questions);
     } catch (err) {
-      setError(normalizeError(err));
+      setError(normalizeQuizError(err));
     } finally {
       setIsLoading(false);
     }
@@ -346,29 +341,5 @@ export function useQuiz(sessionId: string, playerId: string) {
     handleTextChange,
     submitCurrent,
     handleRetry,
-  };
-}
-
-function normalizeError(err: unknown): QuizError {
-  if (err instanceof NetworkError || err instanceof TimeoutError) {
-    return {
-      kind: 'network',
-      message: "You're offline. Check your connection and try again.",
-    };
-  }
-
-  if (err instanceof ApiError) {
-    if (err.status === 404) {
-      return {
-        kind: 'notFound',
-        message: 'Game not found. It may have expired.',
-      };
-    }
-    return { kind: 'unknown', message: err.message };
-  }
-
-  return {
-    kind: 'unknown',
-    message: err instanceof Error ? err.message : 'Something went wrong.',
   };
 }

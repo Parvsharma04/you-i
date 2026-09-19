@@ -47,6 +47,15 @@ export default function HomeScreen() {
             </View>
           </View>
 
+          <View className="mt-3">
+            <Button
+              title="PASS & PLAY"
+              variant="secondary"
+              onPress={() => router.push('/pass-and-play')}
+              fullWidth
+            />
+          </View>
+
           {error && (
             <Text variant="body-sm" color="accent" className="mt-4 text-center">
               {error}

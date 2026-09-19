@@ -66,7 +66,12 @@ function ResultsRouteInner() {
     return null;
   }
 
-  return <ResultScreen record={record} />;
+  return (
+    <ResultScreen
+      record={record}
+      mode={record.passAndPlay ? 'passAndPlay' : 'multiplayer'}
+    />
+  );
 }
 
 export default function ResultsRoute() {

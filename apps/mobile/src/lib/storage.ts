@@ -17,6 +17,11 @@ export const sessionRecordSchema = z.object({
   questionCount: z.number().int(),
   roomCode: z.string().optional(),
   savedAt: z.string().datetime(),
+  passAndPlay: z.boolean().optional(),
+  player1Id: z.string().optional(),
+  player2Id: z.string().optional(),
+  player1Name: z.string().optional(),
+  player2Name: z.string().optional(),
 });
 export type SessionRecord = z.infer<typeof sessionRecordSchema>;
 

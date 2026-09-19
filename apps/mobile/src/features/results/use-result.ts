@@ -42,10 +42,16 @@ function normalizeError(err: unknown): string {
   return 'Could not load results.';
 }
 
+type UseResultOptions = {
+  enableSocket?: boolean;
+};
+
 export function useResult(
   sessionId: string,
   playerId: string,
+  options: UseResultOptions = {},
 ): UseResultReturn {
+  const { enableSocket = true } = options;
   const [result, setResult] = useState<Result | null>(null);
   const [status, setStatus] = useState<ResultStatus>('loading');
   const [error, setError] = useState<string | null>(null);
@@ -64,9 +70,13 @@ export function useResult(
     statusRef.current = status;
   }, [status]);
 
-  useGameSocket(sessionId, playerId, {
-    onResultsReady: (payload) => resolveRef.current(payload),
-  });
+  useGameSocket(
+    enableSocket ? sessionId : null,
+    enableSocket ? playerId : null,
+    {
+      onResultsReady: (payload) => resolveRef.current(payload),
+    },
+  );
 
   useEffect(() => {
     let mounted = true;

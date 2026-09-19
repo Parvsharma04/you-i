@@ -206,10 +206,9 @@ export async function createSession(
   });
 }
 
-export async function joinSessionByCode(
-  code: string,
+export async function joinSession(
+  body: JoinSessionRequest,
 ): Promise<JoinSessionResponse> {
-  const body: JoinSessionRequest = { code };
   joinSessionRequestSchema.parse(body);
   const deviceId = await getOrCreateDeviceId();
   return request({
@@ -219,6 +218,12 @@ export async function joinSessionByCode(
     deviceId,
     schema: joinSessionResponseSchema,
   });
+}
+
+export async function joinSessionByCode(
+  code: string,
+): Promise<JoinSessionResponse> {
+  return joinSession({ code });
 }
 
 export async function getSession(sessionId: string): Promise<SessionResponse> {

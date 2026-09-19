@@ -7,7 +7,7 @@ import { type MySession, SESSION_STATUSES } from '@youandi/shared';
 import { Card } from '@/components/ui/card';
 import { Text, type TextColor } from '@/components/ui/text';
 import { ApiError, NetworkError, TimeoutError, getMySessions } from '@/lib/api';
-import { saveSession } from '@/lib/storage';
+import { getSession, saveSession } from '@/lib/storage';
 
 function formatCategory(category: string): string {
   return category
@@ -22,11 +22,25 @@ function statusForSession(session: MySession): {
 } {
   const {
     status,
+    passAndPlay,
     partnerJoined,
     yourAnswerCount,
     partnerAnswerCount,
     totalExpected,
   } = session;
+
+  if (passAndPlay) {
+    if (status === SESSION_STATUSES.ACTIVE) {
+      const done = yourAnswerCount + partnerAnswerCount;
+      return {
+        label: `Pass & play · ${done}/${totalExpected * 2}`,
+        color: 'accent',
+      };
+    }
+    if (status === SESSION_STATUSES.COMPLETED) {
+      return { label: 'Pass & play · Finished', color: 'primary' };
+    }
+  }
 
   if (status === SESSION_STATUSES.WAITING) {
     return partnerJoined
@@ -56,6 +70,17 @@ function statusForSession(session: MySession): {
 }
 
 function routeForSession(session: MySession): string | null {
+  if (session.passAndPlay) {
+    switch (session.status) {
+      case SESSION_STATUSES.ACTIVE:
+        return `/pass-and-play/${session.id}`;
+      case SESSION_STATUSES.COMPLETED:
+        return `/results/${session.id}`;
+      default:
+        return null;
+    }
+  }
+
   switch (session.status) {
     case SESSION_STATUSES.WAITING:
       return `/lobby/${session.id}`;
@@ -108,14 +133,33 @@ export default function ActiveGamesList({ onError }: ActiveGamesListProps) {
       const route = routeForSession(session);
       if (!route) return;
 
-      await saveSession({
-        sessionId: session.id,
-        playerId: session.playerId,
-        role: session.role,
-        category: session.category,
-        questionCount: session.questionCount,
-        savedAt: new Date().toISOString(),
-      });
+      if (session.passAndPlay) {
+        const stored = await getSession(session.id);
+        if (stored) {
+          await saveSession({ ...stored, savedAt: new Date().toISOString() });
+        } else {
+          // Pass-and-play sessions need the locally-stored player ids and
+          // names; without them we cannot resume safely.
+          await saveSession({
+            sessionId: session.id,
+            playerId: session.playerId,
+            role: session.role,
+            category: session.category,
+            questionCount: session.questionCount,
+            passAndPlay: true,
+            savedAt: new Date().toISOString(),
+          });
+        }
+      } else {
+        await saveSession({
+          sessionId: session.id,
+          playerId: session.playerId,
+          role: session.role,
+          category: session.category,
+          questionCount: session.questionCount,
+          savedAt: new Date().toISOString(),
+        });
+      }
 
       router.push(route as Href);
     },

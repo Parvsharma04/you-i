@@ -24,7 +24,7 @@ export type ButtonProps = AccessibilityProps & {
   title: string;
   onPress?: (event: GestureResponderEvent) => void;
   disabled?: boolean;
-  variant?: 'primary';
+  variant?: 'primary' | 'secondary';
   className?: string;
   fullWidth?: boolean;
 };
@@ -42,6 +42,7 @@ export function Button({
   title,
   onPress,
   disabled = false,
+  variant = 'primary',
   className,
   fullWidth = false,
   accessibilityLabel,
@@ -84,7 +85,11 @@ export function Button({
         style={animatedStyle}
         className={cx(
           'min-h-11 min-w-11 flex-row items-center justify-center border-3 border-border-color px-6 py-3',
-          disabled ? 'bg-[#ffb6c1]' : 'bg-accent',
+          disabled
+            ? 'bg-[#ffb6c1]'
+            : variant === 'secondary'
+              ? 'bg-bg-secondary'
+              : 'bg-accent',
           fullWidth && 'w-full',
           className,
         )}
@@ -92,7 +97,7 @@ export function Button({
       >
         <Text
           variant="display-lg"
-          color="white"
+          color={variant === 'secondary' ? 'primary' : 'white'}
           className="uppercase tracking-[2px]"
         >
           {title}

@@ -456,7 +456,12 @@ IMPORTANT: Respond ONLY with valid JSON in this exact format, no other text:
           'sessionId body is deprecated; send a room code',
         );
       }
-      return this.joinBySessionId(dto.sessionId, deviceId, ip);
+      return this.joinBySessionId(
+        dto.sessionId,
+        dto.passAndPlay ?? false,
+        deviceId,
+        ip,
+      );
     }
 
     return this.joinByCode(
@@ -612,6 +617,7 @@ IMPORTANT: Respond ONLY with valid JSON in this exact format, no other text:
 
   private async joinBySessionId(
     sessionId: string,
+    passAndPlay: boolean,
     deviceId: string,
     ip: string | undefined,
   ): Promise<JoinSessionResponse> {
@@ -639,11 +645,22 @@ IMPORTANT: Respond ONLY with valid JSON in this exact format, no other text:
 
     const existingPlayer = session.players.find((p) => p.deviceId === deviceId);
     if (existingPlayer) {
-      await this.rateLimit.clearFailures(deviceId, ip);
-      return this.buildJoinResponse(session, existingPlayer);
+      if (existingPlayer.role === 'player1' && !passAndPlay) {
+        await this.rateLimit.recordFailure(deviceId, ip, 'SELF_JOIN');
+        throw new JoinSessionException('SELF_JOIN');
+      }
+      if (existingPlayer.role === 'player2') {
+        await this.rateLimit.clearFailures(deviceId, ip);
+        return this.buildJoinResponse(session, existingPlayer);
+      }
+      // pass-and-play: existing player1 is allowed to claim player2.
     }
 
-    const preflightReason = this.classifyJoinFailure(session, deviceId, false);
+    const preflightReason = this.classifyJoinFailure(
+      session,
+      deviceId,
+      passAndPlay,
+    );
     if (preflightReason) {
       await this.rateLimit.recordFailure(deviceId, ip, preflightReason);
       throw new JoinSessionException(preflightReason);
@@ -866,6 +883,7 @@ IMPORTANT: Respond ONLY with valid JSON in this exact format, no other text:
       const partnerAnswerCount = session.answers.filter(
         (a) => a.playerId === partner?.playerId,
       ).length;
+      const passAndPlay = !!partner && partner.deviceId === player.deviceId;
 
       return {
         id: session.id,
@@ -879,6 +897,7 @@ IMPORTANT: Respond ONLY with valid JSON in this exact format, no other text:
         yourAnswerCount,
         partnerAnswerCount,
         totalExpected,
+        passAndPlay,
         lastActivityAt: session.lastActivityAt.toISOString(),
         createdAt: session.createdAt.toISOString(),
       };
