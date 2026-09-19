@@ -19,7 +19,7 @@ export const sessionRecordSchema = z.object({
 export type SessionRecord = z.infer<typeof sessionRecordSchema>;
 
 function sessionKey(sessionId: string): string {
-  return `session:${sessionId}`;
+  return `session_${sessionId}`;
 }
 
 async function readIndex(): Promise<string[]> {

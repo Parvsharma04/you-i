@@ -1,8 +1,14 @@
 import { useCallback, useRef, useState } from 'react';
 import { Alert, Platform, type View } from 'react-native';
-import * as MediaLibrary from 'expo-media-library';
 import * as Sharing from 'expo-sharing';
 import { captureRef } from 'react-native-view-shot';
+
+// Lazy-load expo-media-library so a missing native module (e.g. Expo Go or
+// an outdated dev build) only breaks the camera-roll fallback, not the whole
+// share flow or app startup.
+async function loadMediaLibrary() {
+  return import('expo-media-library');
+}
 
 export type ShareResultStatus =
   'idle' | 'capturing' | 'sharing' | 'saving' | 'saved';
@@ -76,6 +82,18 @@ export function useShareResult(): UseShareResultReturn {
       }
 
       setStatus('saving');
+      let MediaLibrary: typeof import('expo-media-library');
+      try {
+        MediaLibrary = await loadMediaLibrary();
+      } catch {
+        setStatus('idle');
+        Alert.alert(
+          'Save unavailable',
+          'Sharing is not available on this device and the photo library module could not be loaded. Try a development build if you are using Expo Go.',
+        );
+        return;
+      }
+
       // writeOnly=true avoids requesting read access to the user's library.
       const permission = await MediaLibrary.requestPermissionsAsync(true);
       if (!permission.granted) {

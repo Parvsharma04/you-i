@@ -6,7 +6,9 @@
   "private": true,
   "license": "UNLICENSED",
   "scripts": {
+    "prebuild": "pnpm --filter @youandi/shared run build",
     "build": "nest build",
+    "predev": "pnpm --filter @youandi/shared run build",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "start": "nest start",
     "dev": "nest start --watch --no-shell",
@@ -36,6 +38,7 @@
     "@nestjs/websockets": "^11.1.19",
     "@prisma/client": "^5.22.0",
     "@youandi/shared": "workspace:*",
+    "dotenv": "^16.4.7",
     "groq-sdk": "^1.2.0",
     "helmet": "^8.3.0",
     "reflect-metadata": "^0.2.2",
