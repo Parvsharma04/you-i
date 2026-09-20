@@ -133,7 +133,7 @@ COPY --from=builder --chown=node:node /app/packages/shared/dist ./packages/share
 WORKDIR /app/apps/api
 USER node
 
-EXPOSE 3001
+EXPOSE 8081
 
 # Hits the same endpoint the host's load balancer / uptime monitor will
 # use (see HealthController) — lets `docker ps` / Fly/Railway/Render

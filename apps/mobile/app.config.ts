@@ -6,6 +6,10 @@ import type { ConfigContext, ExpoConfig } from 'expo/config';
  * no extra setup.
  */
 const APP_ENV = process.env.APP_ENV ?? 'development';
+// For physical Android devices on Expo Go, set EXPO_PUBLIC_API_URL to the
+// Mac's LAN IP (e.g. http://192.168.1.45:8081) in apps/mobile/.env.
+// Find the IP with: ipconfig getifaddr en0
+// localhost/127.0.0.1 refer to the Android device itself, not the Mac.
 const API_URL = process.env.EXPO_PUBLIC_API_URL ?? 'https://you-i.onrender.com';
 const WS_URL = process.env.EXPO_PUBLIC_WS_URL ?? API_URL;
 const WEB_URL = process.env.EXPO_PUBLIC_WEB_URL ?? 'https://you-i.onrender.com';
@@ -120,6 +124,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       },
     ],
     'expo-sharing',
+    'expo-secure-store',
     [
       'expo-media-library',
       {

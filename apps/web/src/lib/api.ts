@@ -1,6 +1,6 @@
 import { getDeviceId } from './device-id';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8081';
 
 const DEVICE_ID_HEADER = 'x-device-id';
 

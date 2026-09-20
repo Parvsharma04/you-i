@@ -28,7 +28,7 @@ describe('validateEnv', () => {
     const env = validateEnv();
 
     expect(env.DATABASE_URL).toBe('postgres://localhost:5432/db');
-    expect(env.PORT).toBe(3001);
+    expect(env.PORT).toBe(8081);
     expect(exitSpy).not.toHaveBeenCalled();
   });
 

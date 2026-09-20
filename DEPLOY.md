@@ -63,7 +63,8 @@ instead of discovering it on the first request.
 | `GEMINI_API_KEY`                | **Yes, if `LLM_PROVIDER=gemini`** (the default) | — | From Google AI Studio. |
 | `GROQ_API_KEY`                  | **Yes, if `LLM_PROVIDER=groq`** | — | From console.groq.com. |
 | `LLM_PROVIDER`                  | No        | `gemini`         | `gemini` or `groq`. |
-| `PORT`                          | No        | `3001`           | Render sets its own `PORT` automatically for Docker web services — leave this unset and let the platform inject it; the Dockerfile's `EXPOSE 3001` is just documentation, not a hard binding. |
+| `PORT`                          | No        | `8081`           | Render sets its own `PORT` automatically for Docker web services — leave this unset and let the platform inject it; the Dockerfile's `EXPOSE 8081` is just documentation, not a hard binding. |
+| `HOST`                          | No        | `0.0.0.0`        | Interface the HTTP server binds to. `0.0.0.0` is required for LAN access from mobile clients; platforms like Render ignore this and bind to their assigned interface. |
 | `ALLOWED_ORIGINS`               | No        | `http://localhost:3000` | Comma-separated list of browser origins allowed by CORS (HTTP + Socket.IO). Set this to your apps/web share-link domain, e.g. `https://youandi.app`. Mobile clients send no `Origin` header and are unaffected. |
 | `FRONTEND_URL`                  | No        | —                | Legacy single-origin fallback if `ALLOWED_ORIGINS` isn't set. |
 | `ALLOW_LEGACY_PLAYER_ID_BODY`   | No        | `true`           | Set to `false` once every client sends `X-Player-Id` instead of a body `playerId`. |

@@ -7,6 +7,15 @@ const ACTIVE_SESSION_KEY = 'activeSessionId';
 const SESSION_INDEX_KEY = 'sessionIndex';
 const DEVICE_ID_KEY = 'deviceId';
 
+async function guardAvailable(): Promise<void> {
+  const available = await SecureStore.isAvailableAsync();
+  if (!available) {
+    throw new Error(
+      'expo-secure-store is not available. Rebuild your development client (or run on iOS/Android, not web).',
+    );
+  }
+}
+
 export type PlayerRole = z.infer<typeof playerRoleSchema>;
 
 export const sessionRecordSchema = z.object({
@@ -30,6 +39,7 @@ function sessionKey(sessionId: string): string {
 }
 
 async function readIndex(): Promise<string[]> {
+  await guardAvailable();
   const raw = await SecureStore.getItemAsync(SESSION_INDEX_KEY);
   if (!raw) return [];
   try {
@@ -41,10 +51,12 @@ async function readIndex(): Promise<string[]> {
 }
 
 async function writeIndex(index: string[]): Promise<void> {
+  await guardAvailable();
   await SecureStore.setItemAsync(SESSION_INDEX_KEY, JSON.stringify(index));
 }
 
 export async function saveSession(record: SessionRecord): Promise<void> {
+  await guardAvailable();
   const validated = sessionRecordSchema.parse(record);
   await SecureStore.setItemAsync(
     sessionKey(validated.sessionId),
@@ -62,6 +74,7 @@ export async function saveSession(record: SessionRecord): Promise<void> {
 export async function getSession(
   sessionId: string,
 ): Promise<SessionRecord | null> {
+  await guardAvailable();
   const raw = await SecureStore.getItemAsync(sessionKey(sessionId));
   if (!raw) return null;
 
@@ -73,12 +86,14 @@ export async function getSession(
 }
 
 export async function getActiveSession(): Promise<SessionRecord | null> {
+  await guardAvailable();
   const activeId = await SecureStore.getItemAsync(ACTIVE_SESSION_KEY);
   if (!activeId) return null;
   return getSession(activeId);
 }
 
 export async function clearSession(sessionId: string): Promise<void> {
+  await guardAvailable();
   await SecureStore.deleteItemAsync(sessionKey(sessionId));
 
   const activeId = await SecureStore.getItemAsync(ACTIVE_SESSION_KEY);
@@ -94,6 +109,7 @@ export async function clearSession(sessionId: string): Promise<void> {
 }
 
 export async function clearAll(): Promise<void> {
+  await guardAvailable();
   const index = await readIndex();
   await Promise.all([
     SecureStore.deleteItemAsync(ACTIVE_SESSION_KEY),
@@ -103,6 +119,7 @@ export async function clearAll(): Promise<void> {
 }
 
 export async function getOrCreateDeviceId(): Promise<string> {
+  await guardAvailable();
   const existing = await SecureStore.getItemAsync(DEVICE_ID_KEY);
   if (existing) return existing;
 

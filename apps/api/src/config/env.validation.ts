@@ -16,7 +16,8 @@ const envSchema = z
       .min(1, 'DATABASE_URL is required (Postgres connection string)'),
 
     // --- Optional, with defaults matching current runtime behaviour ---
-    PORT: z.coerce.number().int().positive().default(3001),
+    PORT: z.coerce.number().int().positive().default(8081),
+    HOST: z.string().min(1).default('0.0.0.0'),
     NODE_ENV: z
       .enum(['development', 'test', 'production'])
       .default('development'),

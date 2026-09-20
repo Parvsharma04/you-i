@@ -21,8 +21,8 @@ async function bootstrap(): Promise<void> {
 
   app.useGlobalPipes(new ZodValidationPipe());
 
-  await app.listen(env.PORT);
-  console.log(`🚀 you&i backend running on http://localhost:${env.PORT}`);
+  await app.listen(env.PORT, env.HOST);
+  console.log(`🚀 you&i backend running on http://${env.HOST}:${env.PORT}`);
 }
 
 bootstrap();
