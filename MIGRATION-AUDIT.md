@@ -1,190 +1,197 @@
-# MIGRATION AUDIT — You & I (web → native)
-
-Audit date: 2026-09-18. Scope: `frontend/` (Next.js App Router), `backend/` (NestJS), `backend/prisma/schema.prisma`. No files were modified.
-
----
+# MIGRATION AUDIT — You & I (Next.js → React Native)
 
 ## 1. ROUTES
 
-All routes are `'use client'` components (no server components, no `getServerSideProps`/`generateMetadata` data fetching). Every fetch happens client-side, in a `useEffect` that runs after mount (i.e., after first paint), using `fetch()` wrapped in `frontend/src/lib/api.ts`.
-
-| File | URL pattern | Renders | Data fetched | Lifecycle point |
+| File path | URL pattern | What it renders | What data it fetches | Lifecycle point |
 |---|---|---|---|---|
-| `frontend/src/app/page.tsx` | `/` | Category picker + question-count picker + "START GAME" button | None on load. On click: `api.createSession(category, questionCount)` → `POST /session/create` | On user click (`handleStart`), not on mount |
-| `frontend/src/app/lobby/[sessionId]/page.tsx` | `/lobby/[sessionId]` | Invite link (host) / "JOIN GAME" button (guest) / waiting states | `api.getSession(sessionId)` → `GET /session/:id` in a `useEffect` on mount; re-fetched on socket `playerJoined` event; `api.joinSession(sessionId)` → `POST /session/join` on click | `GET /session/:id`: on mount (`useEffect([sessionId])`). Socket connects in the same tick via `useSocket(sessionId, playerInfo?.playerId)`. Re-fetch of session on `playerJoined` socket event (any time after mount). `POST /session/join`: on user click. Auto-redirect to `/quiz/[sessionId]` via `setTimeout(1500ms)` once `session.status === 'active'` |
-| `frontend/src/app/quiz/[sessionId]/page.tsx` | `/quiz/[sessionId]` | One question at a time, MCQ or free-text, progress bars for both players | `api.getQuestions(sessionId)` → `GET /question/:sessionId` on mount; `api.submitAnswer(...)` → `POST /answer` per submit; `api.getAnswerCount(sessionId)` → `GET /answer/:sessionId/count` after last question | Questions fetched on mount (`useEffect([sessionId, router])`). Player identity read synchronously from `sessionStorage` in the same effect (redirects to lobby if missing). Answer POSTed on each "NEXT"/"FINISH" click. Answer-count polled once, only after the *last* question is submitted, to decide whether to redirect immediately or show "waiting for other player" |
-| `frontend/src/app/results/[sessionId]/page.tsx` | `/results/[sessionId]` | Animated score, AI summary, strengths/differences tags, hidden 9:16 share card | `api.getResult(sessionId)` → `GET /result/:sessionId` on mount; if null, `api.generateResult(sessionId)` → `POST /result/generate/:sessionId` | Both calls happen in a single mount-time `useEffect`, sequentially (`getResult` then conditionally `generateResult`). No socket use on this screen at all — see DRIFT §6 and STATE OWNERSHIP §7 |
-
-No dynamic/static route uses `generateStaticParams`, `generateMetadata` per-route (only a static root `metadata` export in `layout.tsx`), middleware, or route handlers (`app/api/*`) — confirmed by `git ls-files` showing no `route.ts` anywhere in `frontend/src/app`.
-
----
+| `apps/web/src/app/page.tsx` | `/` | Landing screen: category selector, question-count selector, join-by-code form, create-game CTA | No initial REST fetch. On click: `api.createSession(category, questionCount)` then stores `sessionStorage.player_${sessionId}` | On click (`handleStart` / `handleJoin`) after user interaction |
+| `apps/web/src/app/j/[code]/page.tsx` | `/j/[code]` | Join-by-link screen: display code, CTA to join room | On click: `api.joinSession(code.trim())` | On click (`handleJoin`) after user interaction |
+| `apps/web/src/app/lobby/[sessionId]/page.tsx` | `/lobby/[sessionId]` | Invitation landing: install-app pitch or continue-in-browser state | `api.getSession(sessionId)`; `sessionStorage.getItem("player_${sessionId}")` for local identity | `api.getSession` in `useEffect` on mount; `sessionStorage` check in state initializer; redirect to `/quiz/${sessionId}` once session status becomes `active` and the browser flow continues |
+| `apps/web/src/app/lobby/[sessionId]/lobby-browser.tsx` | `/lobby/[sessionId]` (browser flow) | In-browser lobby: room code, waiting UI, auto-redirect to quiz | `api.getSession(sessionId)` on join event and initial props; socket `playerJoined` event triggers `api.getSession` refresh | Socket event listener is mounted when `playerInfo` exists; auto-redirect when `session.status === 'active'` after `setTimeout(..., 1500)` |
+| `apps/web/src/app/quiz/[sessionId]/page.tsx` | `/quiz/[sessionId]` | One-question-at-a-time quiz, answer selection, waiting-for-p2 overlay, results redirect | `api.getQuestions(sessionId)` on mount; `api.submitAnswer(...)` on submit; `api.getAnswerCount(sessionId)` after final answer; `sessionStorage` reads player info | `getQuestions` in `useEffect` on mount; `submitAnswer` on button click; `getAnswerCount` after the last answer is submitted; socket `answerSubmitted`/`playerComplete` listeners are mounted with `playerInfo` |
+| `apps/web/src/app/results/[sessionId]/page.tsx` | `/results/[sessionId]` | Score display, summary, strengths, differences, share card, image/WhatsApp copy | `sessionStorage` player lookup; `api.getResult(sessionId, playerId)`; if empty, `api.generateResult(sessionId, playerId)` | `loadResults` runs in `useEffect` on mount; `generateResult` is triggered conditionally when a result is absent |
 
 ## 2. WEB-ONLY APIS
 
-Exhaustive grep-verified list of DOM/browser-only usage. Everything below breaks or needs a native shim under React Native.
-
-| File:Line | API | Used for |
+| File:line | API / construct | What it is being used for |
 |---|---|---|
-| `frontend/src/app/page.tsx:31` | `sessionStorage.setItem` | Persists `{ playerId, isHost }` under key `player_${sessionId}` after creating a session |
-| `frontend/src/app/lobby/[sessionId]/page.tsx:32` | `sessionStorage.getItem` | Reads stored player identity on mount to know if the current browser is P1/P2 |
-| `frontend/src/app/lobby/[sessionId]/page.tsx:75` | `sessionStorage.setItem` | Persists P2 identity right after `POST /session/join` succeeds |
-| `frontend/src/app/lobby/[sessionId]/page.tsx:83` | `window.location.origin` | Builds `shareLink` (`${origin}/lobby/${sessionId}`) |
-| `frontend/src/app/lobby/[sessionId]/page.tsx:88` | `navigator.clipboard.writeText` | "COPY" button — copies invite link |
-| `frontend/src/app/lobby/[sessionId]/page.tsx:93-97` | `document.createElement('input')`, `document.body.appendChild/removeChild`, `input.select()`, `document.execCommand('copy')` | Legacy clipboard fallback if `navigator.clipboard` throws |
-| `frontend/src/app/lobby/[sessionId]/page.tsx:104` | `window.open` | Opens `wa.me` deep link for WhatsApp share |
-| `frontend/src/app/quiz/[sessionId]/page.tsx:29` | `sessionStorage.getItem` | Reads player identity; redirects to lobby if absent |
-| `frontend/src/app/results/[sessionId]/page.tsx:4` | `import { toBlob } from 'html-to-image'` | DOM-to-canvas rasterization library — entire module is browser-only (relies on `document`, `<canvas>`, `Image`, CSS serialization) |
-| `frontend/src/app/results/[sessionId]/page.tsx:56` | `window.location.origin` | Builds share link |
-| `frontend/src/app/results/[sessionId]/page.tsx:66,72` | `navigator.clipboard.writeText` | "COPY"/share-text copy (no execCommand fallback here — silently "succeeds" in the catch block even on failure) |
-| `frontend/src/app/results/[sessionId]/page.tsx:79` | `window.open` | WhatsApp share deep link |
-| `frontend/src/app/results/[sessionId]/page.tsx:91` | `shareCardRef.current` + `toBlob(...)` | Renders the hidden off-screen `<div>` to a PNG blob at `pixelRatio: 3` |
-| `frontend/src/app/results/[sessionId]/page.tsx:105` | `navigator.canShare`, `navigator.share` | Native Web Share API (files) — closest existing bridge to RN's `Share`/`react-native-share`, but API shape differs entirely |
-| `frontend/src/app/results/[sessionId]/page.tsx:116-120` | `URL.createObjectURL`, `document.createElement('a')`, `a.click()`, `URL.revokeObjectURL` | Fallback "download PNG" flow when Web Share unavailable |
-| `frontend/src/components/SoundtrackPlayer.tsx:1` | `'use client'` + `usePathname` from `next/navigation` | Route-driven soundtrack switching keyed on pathname substrings (`/results`, `/lobby`, `/quiz`) |
-| `frontend/src/components/SoundtrackPlayer.tsx:38` | `new Audio()` | Browser `HTMLAudioElement` — needs `expo-av`/`react-native-track-player` equivalent |
-| `frontend/src/components/SoundtrackPlayer.tsx:79` | `fetch(track.localPath, { method: 'HEAD' })` | Probes whether a local `/public/audio/*.mp3` exists before falling back to a remote CDN URL — depends on Next static file serving under `/public` |
-| `frontend/src/components/SoundtrackPlayer.tsx:169` | inline `<style jsx global>` | Next.js `styled-jsx` — not available in RN; keyframes (`barHeight1/2/3`) defined here are **not** in `globals.css` or `tailwind.config.ts` (see DRIFT) |
-| `frontend/src/lib/useSocket.ts:1,3` | `'use client'`, `io` from `socket.io-client` | Socket.io client using web transports; works in RN with polyfills but transport list (`['websocket']` in `useSocket.ts` vs `['websocket','polling']` documented) must be revisited — see DRIFT |
-| All 4 route files | `'use client'` directive | Every page and the layout's `SoundtrackPlayer` opt out of RSC — implicit signal that the whole tree assumes a DOM runtime |
-| `frontend/src/app/*/page.tsx` (all 4) | `next/navigation` (`useRouter`, `usePathname`, `use`) | Next-specific router hooks — no RN equivalent, must be replaced by React Navigation or Expo Router |
-| `frontend/src/app/layout.tsx:1,3` | `next/head`-style `Metadata` export, `<html>/<body>` tags | Next document structure, meaningless in RN |
-| `frontend/postcss.config.mjs`, `tailwind.config.ts`, `@tailwindcss/postcss` | Tailwind v4 (CSS-based, PostCSS pipeline) | Entire styling approach (arbitrary-value utility classes, CSS custom properties referenced via `var()`) has no RN equivalent; RN needs a StyleSheet/NativeWind translation layer |
-
-No `document.querySelector`, no `localStorage` (project uses **`sessionStorage`** exclusively — note this yourself when planning `AsyncStorage` migration, since `sessionStorage` semantics — cleared per tab/session — differ from `AsyncStorage`'s persistent semantics), no `IntersectionObserver`, no `window.matchMedia`.
-
----
+| `apps/web/src/lib/device-id.ts:15,18` | `window.localStorage.getItem`, `window.localStorage.setItem` | Persists a stable browser device ID used for `x-device-id` in API calls. Breaks on RN because React Native does not expose `window.localStorage`. |
+| `apps/web/src/app/page.tsx:4` | `useRouter` from `next/navigation` | Browser routing. Not available in React Native unless you replace with Expo Router or React Navigation. |
+| `apps/web/src/app/page.tsx:35,52` | `sessionStorage.setItem` | Stores `{ playerId, isHost }` under a per-session key so the page can recover identity. |
+| `apps/web/src/app/j/[code]/page.tsx:3,8,20` | `useParams`, `useRouter`, `sessionStorage.setItem` | Reads route param `code` and stores player identity after a code-based join. |
+| `apps/web/src/app/lobby/[sessionId]/page.tsx:4,16,23` | `useRouter`, `sessionStorage.getItem`, `typeof window === 'undefined'` | Reads the browser's session-scoped player state to decide whether to continue in-browser or show install UI. |
+| `apps/web/src/app/lobby/[sessionId]/lobby-browser.tsx:4,21,31` | `useRouter`, `sessionStorage.getItem` | Rehydrates player identity from the browser session, then auto-routes to quiz once the server marks the lobby active. |
+| `apps/web/src/app/quiz/[sessionId]/page.tsx:4,35` | `useRouter`, `sessionStorage.getItem` | Reads player identity; if missing, redirects to `/lobby/${sessionId}`. |
+| `apps/web/src/app/results/[sessionId]/page.tsx:4,5` | `useRouter` from `next/navigation`; `toBlob` from `html-to-image` | Browser routing and DOM-to-image capture of the share card. Entirely browser-dependent. |
+| `apps/web/src/app/results/[sessionId]/page.tsx:24` | `sessionStorage.getItem` | Reads session player ID before fetching/generating the result. |
+| `apps/web/src/app/results/[sessionId]/page.tsx:68` | `window.location.origin` | Builds the shareable `shareLink` URL. |
+| `apps/web/src/app/results/[sessionId]/page.tsx:76` | `navigator.clipboard.writeText` | Copies the share text to the clipboard. |
+| `apps/web/src/app/results/[sessionId]/page.tsx:89` | `window.open` | Opens WhatsApp share URL in a browser tab. |
+| `apps/web/src/app/results/[sessionId]/page.tsx:100-128` | `toBlob`, `navigator.canShare`, `navigator.share`, `URL.createObjectURL`, `document.createElement('a')`, `a.click()`, `URL.revokeObjectURL` | Capture a PNG share image, attempt native share, or fallback to browser download. This is a direct React Native incompatibility. |
+| `apps/web/src/components/SoundtrackPlayer.tsx:4,46` | `usePathname` from `next/navigation` | Route-based audio selection keyed off `pathname`. |
+| `apps/web/src/components/SoundtrackPlayer.tsx:74` | `new Audio()` | Browser HTMLAudioElement for soundtrack playback. RN needs `expo-av` or a native audio package. |
+| `apps/web/src/components/SoundtrackPlayer.tsx:261` | `<style jsx global>` | Inline CSS keyframes for the audio bar visualizer. Not valid in RN. |
+| `apps/web/src/app/layout.tsx:1,2,8` | `Metadata` export from `next`; `html`, `body` tags; `SoundtrackPlayer` import | This is Next document structure, not a React Native screen. |
+| `apps/web/src/lib/useSocket.ts:8` | `import { io, Socket } from 'socket.io-client'` | Browser socket client; cross-platform but the actual transport is browser-oriented and not a native app runtime default. |
+| `apps/web/src/app/page.tsx:4`, `apps/web/src/app/j/[code]/page.tsx:3`, `apps/web/src/app/quiz/[sessionId]/page.tsx:4`, `apps/web/src/app/lobby/[sessionId]/page.tsx:4`, `apps/web/src/app/results/[sessionId]/page.tsx:4`, `apps/web/src/components/SoundtrackPlayer.tsx:4` | `next/navigation` imports | This is the strongest indicator that the app is built around Next-specific routing and browser context. |
+| `apps/web/src/app/results/[sessionId]/page.tsx:5` | `html-to-image` dependency | DOM capture and rasterization library; will not run on React Native as-is. |
 
 ## 3. STYLING
 
-### CSS files present
-| File | Status |
-|---|---|
-| `frontend/src/app/globals.css` | **Live** — imported once from `layout.tsx` via `import "./globals.css"`, drives the entire app (Tailwind v4 `@import "tailwindcss"`, `@config` pointing at `tailwind.config.ts`, `@layer base/components/utilities`, raw `@keyframes`) |
-| `frontend/src/app/lobby/[sessionId]/lobby.module.css` | **Dead code.** Grepped `frontend/src/` for `.module.css` and `styles\.` imports — zero matches. `LobbyPage` uses inline Tailwind classes, not this module |
-| `frontend/src/app/quiz/[sessionId]/quiz.module.css` | **Dead code** — same as above |
-| `frontend/src/app/results/[sessionId]/results.module.css` | **Dead code** — same as above |
+### 3.1 Active CSS files and dead CSS
 
-The three `*.module.css` files also reference CSS custom properties that **do not exist anywhere** in `globals.css` or `tailwind.config.ts`: `--font-display`, `--radius-full`, `--bg-glass`, `--border-glass`, `--radius-lg`, `--shadow-retro`. If you resurrect these files for native theming reference, know that they were never wired up and never resolved a real value even on web.
-
-### Tailwind config (`frontend/tailwind.config.ts`)
-- `boxShadow`: `retro` = `4px 4px 0px var(--border-color)`, `retro-hover` = `2px 2px 0px var(--border-color)`, `retro-active` = `none`, `retro-sm` = `3px 3px 0px var(--border-color)`, `retro-sm-hover` = `2px 2px 0px var(--border-color)`, `retro-lg` = `6px 6px 0px var(--border-color)`, `input` = `inset 3px 3px 0px rgba(0,0,0,0.1)`
-- `fontFamily`: `display: ['VT323', 'monospace']`, `body: ['Space Mono', 'monospace']` — both loaded via Google Fonts `@import` at the top of `globals.css` (`family=VT323&family=Space+Mono:wght@400;700`). Only weights 400/700 of Space Mono are loaded; VT323 has one weight only.
-- `colors`: all indirect — `bg-primary/bg-secondary/bg-card/text-primary/text-secondary/text-muted/accent/border-color` each map straight to a `var(--*)` CSS custom property. **No literal hex is defined in the Tailwind config itself** — the literal values live only in `globals.css`'s `:root` block (below). This is intentional per `design.md`'s "theme-agnostic token" system, but it means a naive scan of `tailwind.config.ts` alone will not find the real palette.
-- `keyframes`/`animation`: `fadeInUp` (0.8s ease forwards), `fadeIn` (0.6s ease), `bounceIn` (0.8s ease forwards) — durations here **differ from the duplicate keyframes hand-written at the bottom of `globals.css`** (0.5s/0.4s/0.6s used inline via arbitrary Tailwind `animate-[...]` syntax in the actual page components). See DRIFT.
-
-### Live color tokens (`globals.css` `:root`, the only theme currently active — "Love & Romance" per `design.md`)
-| Variable | Hex | Role |
+| File | Status | Notes |
 |---|---|---|
-| `--bg-primary` | `#fff0f5` | Page background (also literal-duplicated at `results/page.tsx:365` as `bg-[#fff0f5]` and again as the `toBlob` capture `backgroundColor` at line 90) |
-| `--bg-secondary` | `#ffe4e1` | Grid lines / secondary backgrounds |
-| `--bg-card` | `#ffffff` | Card/button backgrounds |
-| `--text-primary` | `#8b0000` | Primary text |
-| `--text-secondary` | `#a52a2a` | Secondary/body text |
-| `--text-muted` | `#cd5c5c` | Metadata/low-priority text |
-| `--accent-color` | `#ff1493` | Highlights/selection/CTA — also hardcoded literally (not via var) at `results/page.tsx:249` (`background: '#ff1493'`) and throughout `SoundtrackPlayer.tsx` (`#ff1493` appears 4 times, `#333`, `#ffd1dc`, `white`/`black` literals, `#fff0f5` for the widget chrome) |
-| `--border-color` | `#8b0000` | All outlines and hard-shadow color |
+| `apps/web/src/app/globals.css` | Active | Imported in `apps/web/src/app/layout.tsx`; drives the actual theme. |
+| `apps/web/src/app/lobby/[sessionId]/lobby.module.css` | Dead code | Exists but not imported anywhere; actual lobby page uses Tailwind classes only. |
+| `apps/web/src/app/quiz/[sessionId]/quiz.module.css` | Dead code | Same as above. |
+| `apps/web/src/app/results/[sessionId]/results.module.css` | Dead code | Same as above. |
 
-`design.md` documents four **additional, currently-inactive** theme presets (Retro Game Boy, Neon Cyberpunk, Vaporwave Sunset, Sunny Brutalist) with their own hex sets — none of these are wired into the codebase; they exist only as copy-paste blocks in the doc. Treat them as design reference only, not shipped code.
+### 3.2 Theme tokens actually in use
 
-### Spacing / sizing scale actually used (pulled from literal Tailwind arbitrary values across components, not a formal scale)
-`gap`/`padding` values observed: `4px, 8px(gap-2), 10px, 12px, 16px, 18px, 20px, 24px, 32px, 40px, 60px` — no single consistent 4/8-pt scale; both Tailwind's default spacing (`p-6`, `gap-2`, `gap-3`, `gap-4`) and raw arbitrary pixel values (`style={{ gap: '32px' }}`, `p-10`, `p-[60px_40px]`-style inline styles) are mixed inconsistently. Widths: container max-width `480px` (`.container-custom`), share-card fixed `450px × 800px` (9:16-ish, actually 9:16 ≈ 450:800 ✓).
+| CSS variable | Real hex | Used for |
+|---|---|---|
+| `--bg-primary` | `#fff0f5` | Page background |
+| `--bg-secondary` | `#ffe4e1` | Grid + secondary surfaces |
+| `--bg-card` | `#ffffff` | Cards / buttons |
+| `--text-primary` | `#8b0000` | Primary heading/body text |
+| `--text-secondary` | `#a52a2a` | Secondary body text |
+| `--text-muted` | `#cd5c5c` | Lower-priority labels |
+| `--accent-color` | `#ff1493` | CTA + highlights |
+| `--border-color` | `#8b0000` | Border + shadow stroke |
 
-### Border radii
-**None.** Every component explicitly uses `rounded-none` (`btn-primary`, `.glass-card`, `.option-card`, `.category-pill`, `.count-btn`, `.share-btn`, `.toast`, `.progress-bar-container/-fill`, `.score-circle`, `.tag`) except: `.spinner` (`rounded-full`, a CSS spinner), `.pulseRing`-adjacent absent (no radius used), the audio widget's CD/vinyl icon buttons in `SoundtrackPlayer.tsx` (`rounded-full`), and `.playerBadge`'s dead CSS module (`var(--radius-full)`, unresolved/dead). Border widths in play: `2px`, `3px`, `4px`, `6px` (share card only) — never anything else. This "no rounded corners, thick uniform borders" rule is a hard design invariant per `design.md` §"No Rounded Edges" and is followed consistently in shipped code.
+Source: `apps/web/src/app/globals.css:3-12` (active theme = Love & Romance as defined in `design.md`).
 
-### Keyframe/animation inventory (all currently firing, cross-referenced against duplicates)
-| Name | Defined in | Duration/easing as defined | Used how |
-|---|---|---|---|
-| `fadeInUp` | `globals.css` bottom (raw `@keyframes`) **and** `tailwind.config.ts` `animation.fadeInUp` | globals: no duration attached to the raw keyframe itself (duration lives at call site); Tailwind: `0.8s ease forwards` | Called via Tailwind arbitrary syntax with its **own** inline duration per call site, e.g. `animate-[fadeInUp_0.5s_ease_forwards]` (quiz), `animate-[fadeInUp_0.8s_ease_forwards]` (results score section), `animate-[fadeInUp_0.6s_ease_forwards]` (results cards, with `[animation-delay:0.1s/0.2s/0.3s/0.4s]` modifiers) — i.e. the Tailwind `theme.extend.animation.fadeInUp` value is **never actually used**; every call site overrides duration inline |
-| `fadeIn` | Same dual-definition pattern | globals: bare; Tailwind: `0.6s ease` | Same pattern — actual call sites use `0.4s ease` (quiz top bar) and `0.6s ease` (results loading state) |
-| `bounceIn` | Same dual-definition pattern | globals: bare; Tailwind: `0.8s ease forwards` | Call sites: `0.8s ease forwards` (results emoji) with a `0.3s` delay suffix, `0.8s ease forwards` (quiz "STAGE CLEAR") |
-| `blink` | `globals.css` only (not in Tailwind config) | `1s infinite`, opacity 1→0 at 49%/50% | `.waiting-dots span` + staggered `animation-delay: 0.33s/0.66s` for dots 2/3 |
-| `spin` | Tailwind built-in (not custom) | Tailwind default `1s linear infinite` | `.spinner` (default), `.pulseRing` overrides to `4s linear infinite` via arbitrary `animate-[spin_4s_linear_infinite]`, `SoundtrackPlayer`'s CD icon also uses `animate-[spin_4s_linear_infinite]` |
-| `barHeight1`/`barHeight2`/`barHeight3` | **Only** inside `SoundtrackPlayer.tsx`'s `<style jsx global>` block | `0.8s/0.6s/0.9s ease infinite` | Audio visualizer bars — completely separate from the design-system's `globals.css`/`tailwind.config.ts`, i.e. a third, undocumented location for animation definitions |
+### 3.3 Tailwind config and families
 
-**Net finding:** animation keyframes are defined in three disconnected places (`globals.css` raw CSS, `tailwind.config.ts` `theme.extend`, and a component-local `styled-jsx` block), with the Tailwind config's duration values never actually consumed. Any native reimplementation should standardize on the **call-site durations** listed above, not the config's stated defaults.
+| Setting | Actual value |
+|---|---|
+| `fontFamily.display` | `['VT323', 'monospace']` |
+| `fontFamily.body` | `['Space Mono', 'monospace']` |
+| `boxShadow.retro` | `4px 4px 0px var(--border-color)` |
+| `boxShadow.retro-hover` | `2px 2px 0px var(--border-color)` |
+| `boxShadow.retro-sm` | `3px 3px 0px var(--border-color)` |
+| `boxShadow.retro-lg` | `6px 6px 0px var(--border-color)` |
+| `colors.bg-primary` | `var(--bg-primary)` |
+| `colors.bg-secondary` | `var(--bg-secondary)` |
+| `colors.bg-card` | `var(--bg-card)` |
+| `colors.text-primary` | `var(--text-primary)` |
+| `colors.text-secondary` | `var(--text-secondary)` |
+| `colors.text-muted` | `var(--text-muted)` |
+| `colors.accent` | `var(--accent-color)` |
+| `colors.border-color` | `var(--border-color)` |
 
----
+`apps/web/src/app/globals.css` also imports Google Fonts:
+- `VT323`
+- `Space Mono` (`400`, `700` only)
+
+### 3.4 Spacing, border radii, and radius rules
+
+| Design rule | Actual value |
+|---|---|
+| Container max width | `480px` (`.container-custom`) |
+| Box spacing used in code | `4px`, `8px`, `10px`, `12px`, `16px`, `18px`, `20px`, `24px`, `32px`, `40px`, `60px` |
+| Border radius | Essentially none; default is `rounded-none` across the live app |
+| Border widths | `2px`, `3px`, `4px`, `6px` |
+| Share card size | `450px × 800px` with `padding: '60px 40px'` |
+
+The design is intentionally anti-rounded: `rounded-none` is used overwhelmingly. The only obvious `rounded-full` uses are the spinner and audio-CD widgets. There are no live design tokens for a conventional 4/8pt scale; the app mixes Tailwind's default spacing utilities and literal pixel sizes (`style={{ gap: '32px' }}`, `padding: '60px 40px'`, etc.).
+
+### 3.5 Keyframes and animations currently in use
+
+| Animation | Defined in | Actual behavior |
+|---|---|---|
+| `blink` | `apps/web/src/app/globals.css` | `1s infinite`, opacity toggles 1↔0; used by `.waiting-dots span` |
+| `fadeInUp` | `apps/web/src/app/globals.css` and `apps/web/tailwind.config.ts` | Lives in both raw CSS and Tailwind config; call sites override duration inline (`0.5s`, `0.6s`, `0.8s`) |
+| `fadeIn` | `apps/web/src/app/globals.css` and `apps/web/tailwind.config.ts` | Used on quiz and loading states; call sites override timing |
+| `bounceIn` | `apps/web/src/app/globals.css` and `apps/web/tailwind.config.ts` | Used in result score and stage-clear states |
+| `barHeight1`, `barHeight2`, `barHeight3` | `apps/web/src/components/SoundtrackPlayer.tsx` inline `<style jsx global>` | Audio visualizer bars; not part of the shared design system |
+| `spin` | Tailwind default / arbitrary animation | Used once for `.spinner` and again in the CD icon |
 
 ## 4. BACKEND SURFACE
 
-All controllers are plain `@Controller()` classes with **no guards, no auth, no rate limiting, no interceptors** anywhere in `backend/src/`. Global `ValidationPipe({ whitelist: true, transform: true, transformOptions: { enableImplicitConversion: true } })` is the only cross-cutting concern (`backend/src/main.ts`). CORS is locked to a single `FRONTEND_URL` origin (default `http://localhost:3000`).
+### 4.1 Validation and middleware
 
-### `SessionController` (`backend/src/session/session.controller.ts`)
-| Method | Path | Request body/params | Validation | Success response | Status | Error paths |
-|---|---|---|---|---|---|---|
-| POST | `/session/create` | `CreateSessionDto { category: string, questionCount: number }` | `category` must be one of `['love','friendship','deep_talk','fun','spicy','fantasy','interests']` (`@IsIn`); `questionCount` must be int `5–20` (`@IsInt @Min(5) @Max(20)`) | `{ sessionId, player1Id, questionIds: number[], shareLink: "/lobby/{id}" }` | `201` (Nest default for POST) | Validation failure → `400` (Nest `ValidationPipe` default). **LLM failure is swallowed internally** (see §6/DRIFT) — the endpoint never surfaces a 5xx for LLM problems; it silently falls back to hardcoded questions and still returns `201` |
-| POST | `/session/join` | `JoinSessionDto { sessionId: string }` | `@IsString()` only — **no format/UUID validation, no existence pre-check** | `{ sessionId, player2Id, category, questionCount }` | `201` (2 successful joins would both need distinct calls; see logic below) | `NotFoundException` (`404`) if session doesn't exist; `BadRequestException('Session is already full')` (`400`) if `session.player2Id` is already set. **Race condition**: two near-simultaneous joins on a fresh session can both pass the `if (session.player2Id)` check before either write lands — no transaction/lock guards this update |
-| GET | `/session/:id` | `id` path param | none | Raw Prisma `Session` row (includes `player1Id`, `player2Id` — **both players' secret IDs are exposed to any caller who knows the session id**, i.e. anyone with the shareable lobby link can read both players' secret UUIDs) | `200` | `NotFoundException` (`404`) if missing |
+| Concern | Actual implementation |
+|---|---|
+| Global validation | `apps/api/src/main.ts` uses `app.useGlobalPipes(new ZodValidationPipe())` |
+| Validation scope | Only `@Body()` params whose metatype is created by `createZodDto(...)` are validated. Path/query params are not validated by the global pipe. |
+| CORS | `buildCorsOptions()` from `apps/api/src/common/cors.config.ts` |
+| Auth | `PlayerGuard` enforces `X-Player-Id` header for protected routes; `deviceId` is required for host + join flows. |
 
-### `QuestionController` (`backend/src/question/question.controller.ts`)
-| Method | Path | Request | Validation | Success response | Status | Error paths |
-|---|---|---|---|---|---|---|
-| GET | `/question/:sessionId` | `sessionId` path param | none | `Array<{ id, text, type, options: string[] | null, category }>` — `options` is `JSON.parse`d server-side from the stored string | `200` | `NotFoundException` (`404`) if session missing. **Unhandled**: if a `Question.options` string is corrupted/non-JSON, `JSON.parse` throws unhandled → Nest converts to `500 Internal Server Error` with no custom message |
+### 4.2 Controller routes and exact shapes
 
-### `AnswerController` (`backend/src/answer/answer.controller.ts`) — **not documented in `architecture_documentation.md` at all** except the `POST` and `/count` routes; the plain `GET /answer/:sessionId` is undocumented (see DRIFT)
-| Method | Path | Request | Validation | Success response | Status | Error paths |
-|---|---|---|---|---|---|---|
-| POST | `/answer` | `SubmitAnswerDto { sessionId, questionId: int, playerId, answer }` | all fields `@IsString`/`@IsInt`, no length/enum checks on `answer` itself (a text answer of unbounded length is accepted) | Prisma `Answer` row (upserted) | `201` | `BadRequestException('Session not found')` (`400`, not 404 — inconsistent with `SessionController`'s use of `NotFoundException` for the identical condition — see DRIFT); `BadRequestException('Player does not belong to this session')` (`400`) if `playerId` isn't `session.player1Id`/`player2Id`. **No check that `questionId` belongs to `sessionId`** — a caller can submit an answer against a foreign session's question id as long as the FK exists in some `Question` row anywhere in the DB (Prisma FK constraint on `questionId` doesn't exist at all — see schema; only `sessionId` is a real FK) |
-| GET | `/answer/:sessionId` | `sessionId` path param | none | All `Answer` rows for the session, ordered by `questionId` | `200` | none — no existence check on the session; returns `[]` silently for a bogus id |
-| GET | `/answer/:sessionId/count` | `sessionId` path param | none | `{ player1: number, player2: number, totalExpected: number, bothComplete: boolean }` | `200` | `BadRequestException('Session not found')` (`400`, same 400-vs-404 inconsistency) |
-
-### `ResultController` (`backend/src/result/result.controller.ts`)
-| Method | Path | Request | Validation | Success response | Status | Error paths |
-|---|---|---|---|---|---|---|
-| POST | `/result/generate/:sessionId` | `sessionId` path param | none | `{ score: number, summary: string, strengths: string[], differences: string[] }` — **on success this is the raw LLM-parsed object, NOT re-fetched from DB**, so it can contain extra/missing fields the LLM hallucinated, unlike `getResult` which always returns the exact 4-key shape | `201` | `BadRequestException('Session not found')` (`400`); `BadRequestException('Session is not complete — Player 2 has not joined')` (`400`) if `player2Id` is null. **All LLM/JSON-parse errors are caught internally and converted into a 50–90 random-score fallback result that is saved to the DB and returned with `201`** — this endpoint can never return a 4xx/5xx once past the two `BadRequestException` checks above, even if the AI provider is completely down |
-| GET | `/result/:sessionId` | `sessionId` path param | none | `{ score, summary, strengths, differences }` or literal `null` | `200` (`200` with body `null`, not `404`) | none |
-
-### Cross-cutting backend notes
-- No controller reads or validates any auth header/cookie/JWT — "player identity" is enforced purely by the client knowing a UUID string it got back from a prior response and stores in `sessionStorage`. Anyone who obtains a `playerId` (e.g., by reading `GET /session/:id`) can submit answers as that player.
-- `schema.prisma` declares `provider = "postgresql"` and reads `DATABASE_URL` from env (`.env.example` shows a `postgresql://.../himandher` URL), but `backend/prisma/dev.db` on disk is an actual **SQLite 3** file. This means local/dev runs are not exercising the declared Postgres provider — a discrepancy worth resolving before treating `schema.prisma` as ground truth for a native/backend rewrite (see DRIFT).
-
----
+| Route | Request shape | Validation | Success response | Status codes | Error paths |
+|---|---|---|---|---|---|
+| `POST /session/create` | `{ category: string, questionCount: number }` via `CreateSessionDto` from `createSessionRequestSchema` | `category` must be one of `love|friendship|deep_talk|fun|spicy|fantasy|interests`; `questionCount` must be integer `5..20` | `{ sessionId: string, playerId: string, code: string, questionIds: number[] }` | `201` on success | `400` if `x-device-id` missing or body invalid; `Throttle` applies 3 requests/60s |
+| `POST /session/join` | `{ code?: string, sessionId?: string, passAndPlay?: boolean }` | `code` or `sessionId` required; DTO allows either; `x-device-id` required | `{ sessionId: string, playerId: string, role: 'player1' | 'player2', category: string, questionCount: number }` | `201` when a player is matched/claimed | `400` if missing `x-device-id` or invalid join state; `404` if session not found; `JoinSessionException` for `CODE_NOT_FOUND`, `CODE_EXPIRED`, `SELF_JOIN`, `SESSION_FULL`, etc. |
+| `POST /session/:id/regenerate-code` | `:id` path param | `x-device-id` required; session owner must be player1 | `{ code: string, expiresAt: string }` | `200` | `400` if caller is not host or session not waiting; `404` if session missing |
+| `DELETE /session/:id` | `:id` path param | `x-device-id` required; only host can cancel while waiting | `{ deleted: true }` | `200` | `400` if not host or lobby not waiting; `404` if session missing |
+| `GET /session/:sessionId/state` | `:sessionId` path param; header `X-Player-Id` required | `PlayerGuard` checks that the caller belongs to the session | `{ session: { id, category, questionCount, status, createdAt }, you: { playerId, role, answeredQuestionIds }, partner: { joined, answeredQuestionIds, complete }, questions: [{ id, text, type, options }], result: { status: 'none'|'pending'|'ready', data: { score, summary, strengths, differences } | null } }` | `200` | `400` if `sessionId` missing; `403` if player not in session; `404` if session missing |
+| `GET /session/:id` | `:id` path param | none | Prisma `Session` row, e.g. `{ id, category, questionCount, status, code, codeExpiresAt, startedAt, lastActivityAt, createdAt }` | `200` | `404` if session missing |
+| `GET /sessions/mine` | Header `x-device-id` required | `deviceId` must be present | Array of session summaries: `{ id, category, status, statusLabel, questionCount, role, playerId, partnerJoined, yourAnswerCount, partnerAnswerCount, totalExpected, passAndPlay, lastActivityAt, createdAt }` | `200` | `400` if `x-device-id` missing |
+| `GET /question/:sessionId` | `:sessionId` path param | none | `Array<{ id: number, text: string, type: 'mcq' | 'text', options: string[] | null }>` | `200` | `404` if session missing |
+| `POST /answer` | `{ sessionId: string, questionId: number, playerId?: string, answer: string }` | `PlayerGuard` reads `X-Player-Id` header; body `playerId` is legacy fallback only | Prisma `Answer` row: `{ id, sessionId, questionId, playerId, answer }` | `201` | `400` if session missing or player not in session; `403` if `X-Player-Id` mismatch; `422`/`400` from Zod if DTO body invalid |
+| `GET /answer/:sessionId` | `:sessionId` path param | none | `Array<{ id, sessionId, questionId, playerId, answer }>` ordered by `questionId` asc | `200` | Empty array for unknown session; no 404 guard |
+| `GET /answer/:sessionId/count` | `:sessionId` path param | none | `{ player1: number, player2: number, totalExpected: number, bothComplete: boolean }` | `200` | `400` if session missing |
+| `POST /result/generate/:sessionId` | `:sessionId` path param; header `X-Player-Id` required | `PlayerGuard` validates session membership | `{ status: 'ready'|'pending', data: { score, summary, strengths, differences } | null }` | `200` when result already exists; `202` when generation started/pending | `400` if session missing or player2 has not joined; `404` if session missing in deeper service paths |
+| `GET /result/:sessionId` | `:sessionId` path param; header `X-Player-Id` required | `PlayerGuard` validates session membership | `{ status: 'ready'|'pending'|'none', data: { score, summary, strengths, differences } | null }` | `200` | `403`/`404` from `PlayerGuard` or missing session |
+| `GET /health` | none | none | `{ status: 'ok', database: 'up' }` | `200` | `503` with `{ status: 'error', database: 'down' }` if DB probe fails |
+| `GET /health/metrics` | none | none | Prometheus metrics text | `200` | none in controller itself |
 
 ## 5. SOCKET CONTRACT
 
-Gateway: `backend/src/gateway/quiz.gateway.ts`, a single `@WebSocketGateway` with CORS locked to `FRONTEND_URL`. Client: `frontend/src/lib/useSocket.ts`.
+| Direction | Event | Exact payload object in code | Authoritative side | Where defined |
+|---|---|---|---|---|
+| Client → Server | `joinRoom` | `{ sessionId: string, playerId: string }` | Server validates membership against `SessionPlayer`; this is the enforceable join gate | `packages/shared/src/socket.ts`, `apps/api/src/gateway/quiz.gateway.ts`, `apps/web/src/lib/useSocket.ts` |
+| Client → Server | `submitAnswer` | `{ sessionId: string, playerId: string, questionId: number, answerIndex: number }` | The actual answer persistence is authoritative in REST (`POST /answer`), not the socket payload | `packages/shared/src/socket.ts`, `apps/web/src/lib/useSocket.ts`, `apps/api/src/gateway/quiz.gateway.ts` |
+| Client → Server | `quizComplete` | `{ sessionId: string, playerId: string }` | The server does not persist completion; the authoritative state is the aggregated answer count from REST (`GET /answer/:sessionId/count`) | `packages/shared/src/socket.ts`, `apps/web/src/lib/useSocket.ts`, `apps/api/src/gateway/quiz.gateway.ts` |
+| Server → Client | `playerJoined` | `{ playerId: string }` | Server is authoritative for room membership broadcast | `apps/api/src/gateway/quiz.gateway.ts` |
+| Server → Client | `answerSubmitted` | `{ playerId: string, questionId: number, answerIndex: number }` | This is a hint/UI signal only; the canonical answer state is REST/DB | `apps/api/src/gateway/quiz.gateway.ts` |
+| Server → Client | `playerComplete` | `{ playerId: string }` | Hint/UI signal only; not authoritative for result generation or game completion | `apps/api/src/gateway/quiz.gateway.ts` |
+| Server → Client | `resultsReady` | `{ score: number, summary: string, strengths: string[], differences: string[] }` | This is the server result payload; currently dead code in the live implementation | `packages/shared/src/socket.ts`, `apps/api/src/gateway/quiz.gateway.ts`, `apps/api/src/result/result.service.ts` |
 
-| Event | Direction | Emitted from (exact code) | Payload (exact) | Authoritative side | Listened to by |
-|---|---|---|---|---|---|
-| `joinRoom` | Client → Server | `useSocket.ts`: `socket.emit('joinRoom', { sessionId, playerId })` inside the `socket.on('connect', ...)` callback | `{ sessionId: string, playerId: string }` | Client (fires once per socket connection) | Server `@SubscribeMessage('joinRoom') handleJoinRoom` → calls `client.join(data.sessionId)`, logs, then re-emits `playerJoined` |
-| `playerJoined` | Server → Client (broadcast to room, excluding sender) | `quiz.gateway.ts`: `client.to(data.sessionId).emit('playerJoined', { playerId: data.playerId })` | `{ playerId: string }` | Server | Only `lobby/[sessionId]/page.tsx`: `on('playerJoined', () => api.getSession(sessionId).then(setSession))` — **note it ignores the payload entirely and just re-fetches session state over REST** |
-| `submitAnswer` | Client → Server | `useSocket.ts` `emitAnswer(questionId, answerIndex)`: `socket.emit('submitAnswer', { sessionId, playerId, questionId, answerIndex })` | `{ sessionId: string, playerId: string, questionId: number, answerIndex: number }` | Client | Server `@SubscribeMessage('submitAnswer') handleSubmitAnswer` |
-| `answerSubmitted` | Server → Client (broadcast, excluding sender) | `quiz.gateway.ts`: `client.to(data.sessionId).emit('answerSubmitted', { playerId, questionId, answerIndex })` | `{ playerId: string, questionId: number, answerIndex: number }` | Server | `quiz/[sessionId]/page.tsx`: `on('answerSubmitted', (...args) => { const data = args[0] as { answerIndex: number }; setOtherPlayerProgress(prev => Math.max(prev, data.answerIndex + 1)) })` — **only reads `answerIndex`; `playerId` and `questionId` are received but unused, so the client cannot tell which question or which player answered, only a monotonic index** |
-| `quizComplete` | Client → Server | `useSocket.ts` `emitComplete()`: `socket.emit('quizComplete', { sessionId, playerId })` | `{ sessionId: string, playerId: string }` | Client | Server `@SubscribeMessage('quizComplete') handleQuizComplete` |
-| `playerComplete` | Server → Client (broadcast, excluding sender) | `quiz.gateway.ts`: `client.to(data.sessionId).emit('playerComplete', { playerId: data.playerId })` | `{ playerId: string }` | Server | `quiz/[sessionId]/page.tsx`: `on('playerComplete', () => { if (isComplete) router.push(\`/results/${sessionId}\`); else setWaitingForOther(false) })` — payload's `playerId` is **received but unused**; the client infers "it must be the other player" purely from its own local `isComplete` flag |
-| `resultsReady` | Server → Client (documented, **never implemented**) | `quiz.gateway.ts` defines a plain method `emitResultsReady(sessionId, results)` that calls `this.server.to(sessionId).emit('resultsReady', results)` — **grepped the entire `backend/src` tree: this method is never called from anywhere**, and `ResultModule` never imports `GatewayModule` or injects `QuizGateway` | Documented in `architecture_documentation.md` as `QuizResult` payload, but there is **no code path that ever invokes it** | N/A — dead code | **No client code listens for `resultsReady` at all** — `results/[sessionId]/page.tsx` doesn't even call `useSocket`. See DRIFT §6 |
-
-**Authority summary:** the server is authoritative for room membership and for broadcasting "something happened," but it never pushes actual state (scores, session status, answers) over the socket — every socket event is a *signal* that tells the client "go re-fetch via REST," except `answerSubmitted`, whose numeric payload the client trusts directly to move a progress bar (with no REST cross-check). The `Session.status` transition to `'active'`/`'completed'` is REST/DB-driven; sockets never carry it.
-
----
+Notes:
+- The client registers `on('answerSubmitted', ...)` and `on('playerComplete', ...)` but does not subscribe to `resultsReady`.
+- The server calls `this.quizGateway.emitResultsReady(sessionId, persisted);` in `ResultService.generateInBackground`, but the app does not listen for it anywhere in the current web client.
+- The architecture doc describes `resultsReady` as a live event; in code it is not a current user-visible signal, only a dead method stub in the gateway plus a typed schema in `packages/shared/src/socket.ts`.
 
 ## 6. DRIFT
 
-Ranked by how much it would mislead someone building a native client from the doc alone.
-
-| # | Where the doc says X | Where the code does Y | Impact |
-|---|---|---|---|
-| 1 | `architecture_documentation.md` §3 "Gateway Events Map" documents `resultsReady` as an outgoing server event carrying the `QuizResult` payload, and §"Phase D" sequence diagram shows the server broadcasting it after AI generation | `QuizGateway.emitResultsReady()` exists but is **never called** anywhere in `backend/src` (confirmed by grep); `ResultModule` doesn't import `GatewayModule`; no client subscribes to `resultsReady` either | A native client written strictly from the doc would wait forever for a socket push that never arrives. Results are **100% REST-driven** in practice: `results/page.tsx` polls `GET /result/:id` then `POST /result/generate/:id` on mount, with zero socket involvement |
-| 2 | Doc's §5 API reference table lists only 8 endpoints, omitting `GET /answer/:sessionId` (undocumented) entirely | `AnswerController` has 3 routes: `POST /answer`, `GET /answer/:sessionId`, `GET /answer/:sessionId/count` — the plain `GET /answer/:sessionId` (raw answer dump for a session) exists in code and is never mentioned in the doc | A native backend re-implementation working only from the doc would miss this endpoint; also worth asking whether it's intentionally public (no auth on raw answers) |
-| 3 | Doc/PRD's `Session` schema description implies category is one of the 5 listed (`love/friendship/deep_talk/fun/spicy`) | `frontend/src/app/page.tsx` `CATEGORIES` list and `CreateSessionDto`'s `@IsIn([...])` both additionally allow `'fantasy'` and `'interests'` — but `SessionService.generateQuestions`'s `categoryLabels` map and `getFallbackQuestions`'s `defaults` map **only have entries for the original 5**; `fantasy`/`interests` silently fall through to `categoryLabels[category] || category` (raw slug in the LLM prompt) and `defaults[category] || defaults['fun']` (fun-category fallback questions mislabeled as fantasy/interests) | Two categories are reachable in the UI and pass backend validation but produce mismatched/fallback content. Not a crash, but a content-correctness bug that a native rebuild should either fix or preserve deliberately |
-| 4 | Doc's connection-setup section shows client transports as `['websocket', 'polling']` (resilience against proxies) | `frontend/src/lib/useSocket.ts` actually configures `io(SOCKET_URL, { transports: ['websocket'] })` — **polling is not in the actual client fallback list** | Any environment where raw WebSocket upgrade is blocked (corporate proxies, some mobile carriers) will fail silently to connect on web today, contrary to the doc's claim of resilience. For native, verify whether the RN socket.io client needs the same fallback re-added |
-| 5 | Doc doesn't mention CSS module files at all (reasonably, since they're irrelevant to architecture) but `design.md`'s design-system doc implies these values (`--font-display`, `--radius-full`, `--bg-glass`, `--border-glass`, `--radius-lg`, `--shadow-retro`) are part of the live token system | `lobby.module.css`, `quiz.module.css`, `results.module.css` reference exactly those undefined tokens and are **never imported by any component** (confirmed: zero `.module.css` imports anywhere in `frontend/src`) | If a native design-system rebuild pulls "the CSS" from these module files as source of truth, it will import a parallel, subtly different, and completely inert design language that was never actually rendered on web. Use only `globals.css` + inline Tailwind classes in the 4 page files as ground truth |
-| 6 | `tailwind.config.ts` defines `animation.fadeInUp/fadeIn/bounceIn` with specific durations (`0.8s`/`0.6s`/`0.8s`) as "the" animation timing | Every actual call site in the 4 page components uses **arbitrary-value Tailwind syntax** (`animate-[fadeInUp_0.5s_ease_forwards]`, `animate-[fadeIn_0.4s_ease]`, etc.) that **overrides** the config's duration inline, meaning the config's `theme.extend.animation` entries are dead weight, never actually invoked by the class name `animate-fadeInUp` alone anywhere in the codebase (grep confirms no bare `animate-fadeInUp`/`animate-fadeIn`/`animate-bounceIn` usage, only bracketed overrides) | A native rebuild taking "0.8s ease forwards" from the Tailwind config as the timing spec will not match what users actually see on web (0.4–0.6s in most places) |
-| 7 | `design.md` explicitly states components "must never use hardcoded color values (like `#ff1493`); they must only reference these roles [CSS variables]" | `results/page.tsx` hardcodes `background: '#ff1493', border: '2px solid #8b0000'` inline on the SHARE IMAGE button (line ~249), and `SoundtrackPlayer.tsx` hardcodes `#ff1493`, `#fff0f5`, `#333`, `#ffd1dc`, raw `black`/`white`/`gray-300` throughout, plus `toBlob`'s `backgroundColor: '#fff0f5'` is a duplicated literal of `--bg-primary` | The stated design-system invariant is already violated on web before any native port; a native theming layer needs to either fix these leaks or treat them as "theme fixed to Love & Romance, cannot actually be swapped," contradicting the doc's "swap a single CSS variable block" promise |
-| 8 | `schema.prisma` declares `datasource db { provider = "postgresql" }`, `.env.example` shows a `postgresql://` `DATABASE_URL` | `backend/prisma/dev.db` on disk is a **real SQLite 3 database file** (verified via `file` command: "SQLite 3.x database") | Unclear which is authoritative for current local development — worth confirming directly with whoever runs the backend locally before assuming Postgres-only semantics (e.g., JSON columns, concurrency behavior) carry over to a native/backend rewrite. **UNKNOWN — check `backend/.env` (not `.env.example`, which is git-ignored per `.gitignore`) and whichever `DATABASE_URL` is actually exported when `prisma migrate`/`db push` was last run** |
-| 9 | Doc's error-handling narrative doesn't mention specific HTTP status codes | Actual backend is **inconsistent about `400` vs `404`**: `SessionController`/`SessionService` correctly throws `NotFoundException` (404) for a missing session on `join`/`getSession`, but `AnswerService.submit`/`getAnswerCount` and `ResultService.generate` all throw `BadRequestException` (400) for the identical "session not found" condition | A native client can't reliably distinguish "your request was malformed" from "that session doesn't exist" by status code alone across endpoints — must special-case per endpoint or rely on `error.message` string matching (fragile) |
-| 10 | Doc's Phase C sequence diagram shows `answerSubmitted`'s payload used to show "Player X answered!" per-question indicators | Actual client handler (`quiz/page.tsx`) only tracks a **numeric max progress index** (`Math.max(prev, data.answerIndex + 1)`) — it cannot render "which specific question" or "which specific player" answered, despite both `playerId` and `questionId` being present in the payload it receives | If a native rebuild wants the doc's described per-question indicator UX, that's new functionality, not a like-for-like port — the current web client silently discards data it needs for that UX |
-
----
+| Drift | Evidence | Impact |
+|---|---|---|
+| 1. Architecture says the `Session` table stores `player1Id` and `player2Id` | Real schema: `apps/api/prisma/schema.prisma` has `SessionPlayer` with `playerId`, `role`, `deviceId`, and unique constraints on `(sessionId, role)` and `(sessionId, playerId)`. `Session` itself has no `player1Id`/`player2Id` columns. | All player identity assumptions in the doc are stale. The server is using a normalized player table, not a flat 2-column session row. |
+| 2. The architecture doc promises `shareLink` in create/join responses | Actual `CreateSessionResponse` and `JoinSessionResponse` in `packages/shared/src/schemas.ts` do not include `shareLink`. `apps/web/src/lib/api.ts` returns `{ sessionId, playerId, code, questionIds }` and `{ sessionId, playerId, role, category, questionCount }`. | The docs are out of sync with the API actually shipped and the web client. |
+| 3. The architecture doc says `join` takes `{ sessionId }` but the current API prefers room code | `joinSessionRequestSchema` in `packages/shared/src/schemas.ts` accepts `code` or `sessionId`; `SessionService.join` explicitly prefers `dto.code` and treats legacy `sessionId` as deprecated. | The backend supports both paths, but the shipped UX is code-based, not `sessionId`-based. |
+| 4. Architecture says the app reads player IDs from localStorage; actual implementation uses `sessionStorage` and not localStorage | `apps/web/src/app/page.tsx` and `apps/web/src/app/quiz/[sessionId]/page.tsx` use `sessionStorage`, and `apps/web/src/lib/device-id.ts` uses `window.localStorage` for the device ID only | This is a data-lifetime and persistence mismatch. Session state is not meant to survive a browser close; device ID is meant to be persistent. |
+| 5. Architecture claims the app is “purely browser-web” with `window.location.origin` share links and full WebSocket-driven progression, but it is actually built around route `next/navigation` and document APIs | `apps/web/src/app/...` pages import `useRouter`, `useParams`, `usePathname`; `apps/web/src/components/SoundtrackPlayer.tsx` uses `new Audio()`, `document` is not used directly but the page uses browser-only share features | This code will not migrate to a native shell without swapping router and browser APIs. |
+| 6. The architecture doc says the `Question` model has a `category` field and `GET /question/:sessionId` returns `category` | Actual Prisma `Question` model in `apps/api/prisma/schema.prisma` has no `category` column. The shared `questionSchema` includes `category` but the server `QuestionController` returns a question list derived from `QuestionService` without category. | The type contract and DB schema disagree. One side documents a field that is not persisted. |
+| 7. Architecture doc says the socket is needed to progress the room when a player joins | Actual `LobbyBrowser` waits for `playerJoined` to call `api.getSession(sessionId)` and then redirects only when `session.status === 'active'` after a timer. It does not immediately change state from the socket itself. | The socket is a hint, not the source of truth; the server state is fetched over REST. |
+| 8. Architecture doc says `useSocket` uses `transports: ['websocket', 'polling']`; actual code uses only `['websocket']` | `apps/web/src/lib/useSocket.ts` is hard-coded as `transports: ['websocket']`. | This is a real connectivity mismatch if the deployment environment needs fallback/HTTP polling. |
+| 9. Architecture says `GET /result/:sessionId` returns a raw result or `null`; actual code returns `ResultStatusResponse` | The `ResultController` and `ResultService.getResult` both return `{ status, data }`, not the bare result object. | The documented REST contract is stale and the client logic is expecting the newer status wrapper. |
+| 10. Architecture says `POST /result/generate/:sessionId` returns the generated result immediately | Actual `ResultController.generate` writes `res.status(alreadyExists ? 200 : 202)` and returns a wrap object. `requestGeneration` returns `status: 'pending'` while generation runs in the background. | The request/response contract is an async orchestration model, not a synchronous “generate and return immediately” model. |
+| 11. Architecture says the app creates the result and updates `Session.status` to `completed` on the same request path | Actual generation is fire-and-forget: `requestGeneration()` triggers `generateInBackground()` in the background and responds immediately with `pending`; the `session` update happens later in background generation. | The lifecycle is async and not the one documented in the architecture. |
+| 12. Architecture says the socket emits `resultsReady` and clients listen for it | Actual `QuizGateway.emitResultsReady(...)` exists, but the web client never subscribes to it. `apps/web/src/lib/useSocket.ts` `on` helper is used only for `answerSubmitted` and `playerComplete`. | This event is effectively dead code. The app only gets results via REST polling. |
+| 13. Architecture says there is no auth/guarding around API routes | The real backend uses `PlayerGuard` and requires `X-Player-Id` for result and answer routes; session creation/join require `x-device-id`. | The runtime API surface is more locked down than the docs claim. |
+| 14. The doc describes a session as `waiting -> active -> completed` flow only | Real `Session` status enum includes `waiting | active | completed | expired | abandoned` and the service uses `SESSION_STATUSES.EXPIRED` / `ABANDONED` in `SessionService.findMine` and `classifyJoinFailure`. | The lifecycle is broader and stateful than the docs capture. |
+| 15. Architecture says question count is “usually 5-10”, but the actual API allows 5 to 20 and the UI exposes 5/10/15/20 | `createSessionRequestSchema` uses `z.number().int().min(5).max(20)`, and the home screen options are 5, 10, 15, 20. | The architecture document under-specifies the actual production behavior. |
+| 16. Architecture says `GET /answer/:sessionId/count` is the only way to know whether both players are done | In the actual web quiz client, a player also subscribes to `playerComplete` and uses the socket progress hint; the server side does not persist completion or enforce a “done” state in the socket itself. | The real state source is split between REST and socket hinting, which is the exact migration risk. |
 
 ## 7. STATE OWNERSHIP
 
-| Screen | REST-sourced state | Socket-sourced state | `sessionStorage`-sourced state | What happens if the socket drops mid-screen (today's actual behavior) |
+| Screen / route | State from REST | State from sockets | State from localStorage / sessionStorage | Socket-drop behavior today |
 |---|---|---|---|---|
-| `/` (landing) | None until submit; `POST /session/create` response feeds the redirect | None — `useSocket` is never called on this page | Writes (not reads) `player_${sessionId}` on success | N/A — no socket connection exists on this screen |
-| `/lobby/[sessionId]` | `session` (full `Session` row) via `GET /session/:id`, both on mount and again inside the `playerJoined` handler; `playerInfo` refresh after `POST /session/join` | Only signal-level: `playerJoined` (payload ignored, triggers a REST re-fetch) | `playerInfo` (`{ playerId, isHost }`) read on mount via `sessionStorage.getItem`; written on join | If the socket disconnects before P2 joins, P1's browser **never learns P2 joined** — there is no REST polling fallback on this screen, so P1 is stuck on "WAITING FOR P2..." indefinitely even though the DB's `session.status` did flip to `'active'` server-side (a page refresh would fix it, since the mount-time `GET /session/:id` would then observe `status === 'active'` and redirect after 1.5s, but nothing auto-recovers) |
-| `/quiz/[sessionId]` | `questions` array via `GET /question/:sessionId` (once, on mount); `answerCount`/`bothComplete` via `GET /answer/:sessionId/count` (once, only after the player's own last answer) | `otherPlayerProgress` (from `answerSubmitted`, numeric only); completion signal from `playerComplete` (drives `waitingForOther`/redirect) | `playerInfo` read on mount (redirects to `/lobby` if absent) | If the socket drops **before** the current player finishes: their own submissions still succeed (`POST /answer` is REST, socket-independent), but they stop seeing the opponent's live progress bar update (`otherPlayerProgress` freezes at its last known value) — no error is shown, it just silently stalls. If the socket drops **after** the current player finishes and is on the "STAGE CLEAR / AWAITING P2" screen: they will **never receive `playerComplete`**, so `waitingForOther` never flips false and there is no REST poll/timeout to recover — the player is stuck on that screen forever unless they manually navigate to `/results/[sessionId]`, which happens to work anyway because that page independently re-derives everything from REST |
-| `/results/[sessionId]` | Everything: `GET /result/:sessionId` then `POST /result/generate/:sessionId`, both only on mount | **None** — this screen never calls `useSocket` at all, despite the architecture doc describing a `resultsReady` socket push for this exact phase (dead code per DRIFT §1) | Not read directly (share link is derived from `window.location`, not storage) | Irrelevant — there is no socket connection to drop on this screen in the current implementation |
+| `/` | `api.createSession(category, questionCount)` returns `sessionId`, `playerId`, `code` | none | `sessionStorage.player_${sessionId}` stores `{ playerId, isHost }` after create/join | No socket connection exists; nothing breaks. |
+| `/j/[code]` | `api.joinSession(code)` returns `sessionId` + `playerId` | none | `sessionStorage.player_${sessionId}` after join | No socket connection exists; nothing breaks. |
+| `/lobby/[sessionId]` (install page) | `api.getSession(sessionId)` | `playerJoined` is listened to in the browser flow, not in the install page | `sessionStorage.player_${sessionId}` is checked to decide whether to show install pitch or continue in browser | If the socket drops before the second player joins, the page never refreshes because there is no polling loop; it stays in the waiting state until a manual refresh. |
+| `/lobby/[sessionId]` (browser flow) | `api.getSession(sessionId)` on mount and again when `playerJoined` fires | `playerJoined` updates the session; when `session.status === 'active'`, the page redirects to `/quiz/${sessionId}` | `sessionStorage.player_${sessionId}` is used to recover `playerId` and `isHost` | If the socket drops while waiting, there is no REST fallback poll; the UI can remain stuck waiting forever. |
+| `/quiz/[sessionId]` | `api.getQuestions(sessionId)`; `api.submitAnswer(...)`; `api.getAnswerCount(sessionId)` after final answer | `answerSubmitted` updates `otherPlayerProgress`; `playerComplete` toggles `waitingForOther` or triggers result redirect | `sessionStorage.player_${sessionId}` holds `{ playerId, isHost }` | If the socket drops mid-game, the other player's progress stops updating; the page may sit in a stale waiting state because there is no periodic REST fallback to refresh completion status. The final completion check is only made after the current player submits the last answer. |
+| `/results/[sessionId]` | `api.getResult(sessionId, playerId)` and `api.generateResult(sessionId, playerId)` | none | `sessionStorage.player_${sessionId}` is used to recover the player ID and authorize the fetch | Socket loss is irrelevant; no socket is required. This screen is REST-authoritative. |
 
-**Overall pattern:** sockets are used only as best-effort "someone should refresh now" nudges layered on top of state that is always ultimately owned by REST + the Postgres/SQLite-backed session row. Every socket handler in the client either (a) triggers a REST re-fetch, or (b) mutates a purely-local, non-persisted counter (`otherPlayerProgress`) that has no reconciliation against REST truth. **None of the three multiplayer screens implement reconnection, retry, or polling fallback for a dropped socket** — a native rebuild that wants resilience to flaky mobile connections (the whole point of this migration) needs to add: (1) periodic REST polling as a socket-drop fallback on `/lobby` and the "waiting for other player" states of `/quiz`, and (2) a reconciliation fetch after any socket reconnect, since currently a reconnect just silently re-joins the room (`socket.on('connect', ...)` re-emits `joinRoom`) with no "catch me up" event or REST call triggered by reconnection itself.
+Bottom line: the app is already mixed-mode. The server is authoritative for persisted session state, the socket is a hint layer for the lobby and live progress, and the browser is holding player identity in `sessionStorage` rather than a long-lived native store. That split is the key migration risk for all screens.
+
+## UNKNOWN / LOOKUP NOTES
+
+- `apps/web/src/app/layout.tsx` is the root of the Next.js document tree; exact behavior outside the app route files should be checked there if you need the final page-level render hierarchy.
+- `apps/web/src/app/results/[sessionId]/page.tsx` uses a hidden share card generated with `html-to-image`; the exact native replacement is not encoded in the current repo and will need a deliberate native-share/PNG export plan.
+- `apps/web/src/components/SoundtrackPlayer.tsx` is a browser-only UI layer; no native analog is declared in the repo.
