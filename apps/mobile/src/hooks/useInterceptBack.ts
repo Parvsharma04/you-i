@@ -8,18 +8,11 @@ type BeforeRemoveEvent = {
 
 type BeforeRemoveHandler = (event: BeforeRemoveEvent) => void;
 
-/**
- * Intercept the React Navigation `beforeRemove` event (hardware back,
- * gesture back, or header back) for the current screen. Expo Router
- * exposes `useNavigation`, so we use the navigation event API instead
- * of reaching for `BackHandler` directly.
- *
- * Set `leavingIntentionallyRef.current = true` before programmatic
- * navigation (e.g. pushing results) to skip the intercept.
- */
 export function useInterceptBack(handler: BeforeRemoveHandler) {
   const navigation = useNavigation();
+
   const handlerRef = useRef(handler);
+  const navigatingRef = useRef(false);
 
   useEffect(() => {
     handlerRef.current = handler;
@@ -29,7 +22,19 @@ export function useInterceptBack(handler: BeforeRemoveHandler) {
     const unsubscribe = navigation.addListener(
       'beforeRemove',
       (event: BeforeRemoveEvent) => {
-        handlerRef.current(event);
+        // Allow the navigation triggered by our own handler to go through.
+        if (navigatingRef.current) {
+          navigatingRef.current = false;
+          return;
+        }
+
+        handlerRef.current({
+          ...event,
+          preventDefault: () => {
+            event.preventDefault();
+            navigatingRef.current = true;
+          },
+        });
       },
     );
 

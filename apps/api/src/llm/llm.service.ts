@@ -26,7 +26,7 @@ export class GroqProvider implements LLMProvider {
   async generateContent(prompt: string): Promise<string> {
     const chatCompletion = await this.groq.chat.completions.create({
       messages: [{ role: 'user', content: prompt }],
-      model: 'llama-3.3-70b-versatile',
+      model: 'llama-3.1-8b-instant',
     });
     return chatCompletion.choices[0]?.message?.content || '';
   }
