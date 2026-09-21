@@ -1,15 +1,9 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { ScrollView, TextInput, View } from 'react-native';
 import { useRouter } from 'expo-router';
 
 import { LoadingView } from '@/components/loading-view';
-import Animated, {
-  Easing,
-  useAnimatedProps,
-  useReducedMotion,
-  useSharedValue,
-  withTiming,
-} from 'react-native-reanimated';
+import Animated, { useAnimatedProps } from 'react-native-reanimated';
 import {
   SCORE_RANK_THRESHOLDS,
   type Category,
@@ -24,6 +18,7 @@ import { createSession } from '@/lib/api';
 import { env } from '@/lib/env';
 import { useAppFonts } from '@/lib/fonts';
 import { saveSession, type SessionRecord } from '@/lib/storage';
+import { useCountUp } from '@/theme';
 
 import { useResult } from './use-result';
 import { ShareCard } from './ShareCard';
@@ -79,19 +74,7 @@ function parseStringList(value: unknown): string[] {
 }
 
 function AnimatedScore({ finalScore }: { finalScore: number }) {
-  const reduceMotion = useReducedMotion();
-  const value = useSharedValue(reduceMotion ? finalScore : 0);
-
-  useEffect(() => {
-    if (reduceMotion) {
-      value.value = finalScore;
-    } else {
-      value.value = withTiming(finalScore, {
-        duration: 1500,
-        easing: Easing.out(Easing.cubic),
-      });
-    }
-  }, [finalScore, reduceMotion, value]);
+  const { value } = useCountUp(finalScore);
 
   const animatedProps = useAnimatedProps<{
     text: string;

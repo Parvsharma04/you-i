@@ -1,5 +1,14 @@
 export { ThemeProvider, useTheme } from './provider';
 export {
+  FadeInStagger,
+  MotionPressable,
+  motion,
+  useCountUp,
+  type CountUpOptions,
+  type FadeInStaggerProps,
+  type MotionPressableProps,
+} from './motion';
+export {
   CATEGORY_NAMES,
   categoryColors,
   resolveTheme,

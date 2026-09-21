@@ -60,8 +60,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     ...config.android,
     package: `${ANDROID_PACKAGE}${BUNDLE_IDENTIFIER_SUFFIX}`,
     // versionCode is intentionally omitted; EAS Build auto-increments it.
-    // Ensure the layout resizes when the keyboard opens so
-    // KeyboardAvoidingView can keep the submit button visible.
+    // Ensure the layout resizes when the keyboard opens.
     softwareKeyboardLayoutMode: 'resize',
     // Player IDs are bearer secrets; disable Android Auto Backup.
     allowBackup: false,
@@ -125,6 +124,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     ],
     'expo-sharing',
     'expo-secure-store',
+    'react-native-keyboard-controller',
     [
       'expo-media-library',
       {

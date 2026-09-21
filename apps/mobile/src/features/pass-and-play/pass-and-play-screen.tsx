@@ -1,11 +1,6 @@
-import {
-  Keyboard,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  View,
-} from 'react-native';
+import { Keyboard, View } from 'react-native';
 import { useRouter } from 'expo-router';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 
 import { LoadingView } from '@/components/loading-view';
 import { Button } from '@/components/ui/button';
@@ -131,61 +126,57 @@ export default function PassAndPlayScreen({
 
   return (
     <Screen>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      <KeyboardAwareScrollView
         className="flex-1"
+        contentContainerClassName="flex-grow"
+        keyboardShouldPersistTaps="handled"
+        onScrollBeginDrag={Keyboard.dismiss}
+        extraKeyboardSpace={16}
       >
-        <ScrollView
-          className="flex-1"
-          contentContainerClassName="flex-grow"
-          keyboardShouldPersistTaps="handled"
-          onScrollBeginDrag={Keyboard.dismiss}
-        >
-          <View className="flex-grow px-6 py-8">
-            <View className="flex-row items-center justify-between">
-              <Text variant="body-xs" bold color="muted">
-                STAGE {currentIndex + 1}/{totalQuestions}
+        <View className="flex-grow px-6 py-8">
+          <View className="flex-row items-center justify-between">
+            <Text variant="body-xs" bold color="muted">
+              STAGE {currentIndex + 1}/{totalQuestions}
+            </Text>
+            <View className="border-2 border-border-color bg-bg-card px-3 py-1">
+              <Text variant="body-xs" bold color="secondary">
+                {currentRole === 'player1'
+                  ? (record.player1Name ?? 'PLAYER 1').toUpperCase()
+                  : (record.player2Name ?? 'PLAYER 2').toUpperCase()}
               </Text>
-              <View className="border-2 border-border-color bg-bg-card px-3 py-1">
-                <Text variant="body-xs" bold color="secondary">
-                  {currentRole === 'player1'
-                    ? (record.player1Name ?? 'PLAYER 1').toUpperCase()
-                    : (record.player2Name ?? 'PLAYER 2').toUpperCase()}
-                </Text>
-              </View>
-            </View>
-
-            <View className="mt-2">
-              <ProgressBar
-                label="YOU"
-                progress={progress}
-                total={totalQuestions}
-                variant="you"
-              />
-            </View>
-
-            <View className="mt-6 flex-1">
-              <QuestionCard
-                question={currentQuestion}
-                selectedOption={selectedOption}
-                textAnswer={textAnswer}
-                disabled={isSubmitting}
-                onSelectOption={handleSelectOption}
-                onChangeText={handleTextChange}
-              />
-            </View>
-
-            <View className="mt-auto pt-4">
-              <Button
-                title={isSubmitting ? 'SAVING…' : submitLabel}
-                onPress={submitCurrent}
-                disabled={!canSubmit}
-                fullWidth
-              />
             </View>
           </View>
-        </ScrollView>
-      </KeyboardAvoidingView>
+
+          <View className="mt-2">
+            <ProgressBar
+              label="YOU"
+              progress={progress}
+              total={totalQuestions}
+              variant="you"
+            />
+          </View>
+
+          <View className="mt-6 flex-1">
+            <QuestionCard
+              question={currentQuestion}
+              selectedOption={selectedOption}
+              textAnswer={textAnswer}
+              disabled={isSubmitting}
+              onSelectOption={handleSelectOption}
+              onChangeText={handleTextChange}
+            />
+          </View>
+
+          <View className="mt-auto pt-4">
+            <Button
+              title={isSubmitting ? 'SAVING…' : submitLabel}
+              onPress={submitCurrent}
+              disabled={!canSubmit}
+              fullWidth
+            />
+          </View>
+        </View>
+      </KeyboardAwareScrollView>
     </Screen>
   );
 }

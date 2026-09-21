@@ -1,10 +1,5 @@
-import {
-  Keyboard,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  View,
-} from 'react-native';
+import { Keyboard, View } from 'react-native';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 
 import type { PlayerRole } from '@youandi/shared';
 
@@ -56,97 +51,89 @@ export function QuizScreen({ sessionId, playerId, role }: QuizScreenProps) {
 
   return (
     <Screen>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      <KeyboardAwareScrollView
         className="flex-1"
+        contentContainerClassName="flex-grow"
+        keyboardShouldPersistTaps="handled"
+        onScrollBeginDrag={Keyboard.dismiss}
+        extraKeyboardSpace={16}
       >
-        <ScrollView
-          className="flex-1"
-          contentContainerClassName="flex-grow"
-          keyboardShouldPersistTaps="handled"
-          onScrollBeginDrag={Keyboard.dismiss}
-        >
-          <View className="flex-grow px-6 py-8">
-            {isLoading && (
-              <LoadingView
-                title="LOADING QUESTIONS…"
-                subtitle="Getting this round ready."
-              />
-            )}
+        <View className="flex-grow px-6 py-8">
+          {isLoading && (
+            <LoadingView
+              title="LOADING QUESTIONS…"
+              subtitle="Getting this round ready."
+            />
+          )}
 
-            {!isLoading && error && (
-              <ErrorView message={error.message} onRetry={handleRetry} />
-            )}
+          {!isLoading && error && (
+            <ErrorView message={error.message} onRetry={handleRetry} />
+          )}
 
-            {!isLoading && !error && localComplete && (
-              <WaitingView
-                partnerProgress={partnerProgress}
-                total={totalQuestions}
-                pendingCount={pendingCount}
-                socketStatus={socketStatus}
-              />
-            )}
+          {!isLoading && !error && localComplete && (
+            <WaitingView
+              partnerProgress={partnerProgress}
+              total={totalQuestions}
+              pendingCount={pendingCount}
+              socketStatus={socketStatus}
+            />
+          )}
 
-            {!isLoading && !error && !localComplete && currentQuestion && (
-              <View className="flex-1 gap-6">
-                <View className="flex-row items-center justify-between">
-                  <Text variant="body-xs" bold color="muted">
-                    STAGE {currentIndex + 1}/{totalQuestions}
+          {!isLoading && !error && !localComplete && currentQuestion && (
+            <View className="flex-1 gap-6">
+              <View className="flex-row items-center justify-between">
+                <Text variant="body-xs" bold color="muted">
+                  STAGE {currentIndex + 1}/{totalQuestions}
+                </Text>
+                <View className="border-2 border-border-color bg-bg-card px-3 py-1">
+                  <Text variant="body-xs" bold color="secondary">
+                    {role === 'player1' ? 'PLAYER 1' : 'PLAYER 2'}
                   </Text>
-                  <View className="border-2 border-border-color bg-bg-card px-3 py-1">
-                    <Text variant="body-xs" bold color="secondary">
-                      {role === 'player1' ? 'PLAYER 1' : 'PLAYER 2'}
-                    </Text>
-                  </View>
-                </View>
-
-                <View className="gap-2">
-                  <ProgressBar
-                    label="YOU"
-                    progress={youProgress}
-                    total={totalQuestions}
-                    variant="you"
-                  />
-                  <ProgressBar
-                    label="P2"
-                    progress={partnerProgress}
-                    total={totalQuestions}
-                    variant="partner"
-                  />
-                </View>
-
-                <QuestionCard
-                  question={currentQuestion}
-                  selectedOption={selectedOption}
-                  textAnswer={textAnswer}
-                  disabled={isSubmitting}
-                  onSelectOption={handleSelectOption}
-                  onChangeText={handleTextChange}
-                />
-
-                {pendingCount > 0 && (
-                  <Text
-                    variant="body-sm"
-                    color="accent"
-                    className="text-center"
-                  >
-                    {pendingCount} answer{pendingCount === 1 ? '' : 's'} queued
-                  </Text>
-                )}
-
-                <View className="mt-auto pt-4">
-                  <Button
-                    title={isSubmitting ? 'SAVING…' : submitLabel}
-                    onPress={submitCurrent}
-                    disabled={!canSubmit}
-                    fullWidth
-                  />
                 </View>
               </View>
-            )}
-          </View>
-        </ScrollView>
-      </KeyboardAvoidingView>
+
+              <View className="gap-2">
+                <ProgressBar
+                  label="YOU"
+                  progress={youProgress}
+                  total={totalQuestions}
+                  variant="you"
+                />
+                <ProgressBar
+                  label="P2"
+                  progress={partnerProgress}
+                  total={totalQuestions}
+                  variant="partner"
+                />
+              </View>
+
+              <QuestionCard
+                question={currentQuestion}
+                selectedOption={selectedOption}
+                textAnswer={textAnswer}
+                disabled={isSubmitting}
+                onSelectOption={handleSelectOption}
+                onChangeText={handleTextChange}
+              />
+
+              {pendingCount > 0 && (
+                <Text variant="body-sm" color="accent" className="text-center">
+                  {pendingCount} answer{pendingCount === 1 ? '' : 's'} queued
+                </Text>
+              )}
+
+              <View className="mt-auto pt-4">
+                <Button
+                  title={isSubmitting ? 'SAVING…' : submitLabel}
+                  onPress={submitCurrent}
+                  disabled={!canSubmit}
+                  fullWidth
+                />
+              </View>
+            </View>
+          )}
+        </View>
+      </KeyboardAwareScrollView>
     </Screen>
   );
 }

@@ -26,6 +26,12 @@ Being migrated to: an Expo (React Native) app on the same NestJS API.
   the React Native New Architecture.
 - Never edit apps/mobile/android or apps/mobile/ios. They are generated output.
   Native config goes in app.config.ts.
+- Motion may animate transform and opacity only. Never animate width, height,
+  margin, padding, or flex; those force a native layout pass per frame.
+- Animations must not read or write React state per frame. Use Reanimated shared
+  values and animated styles on the UI thread.
+- Every motion preset must check `AccessibilityInfo.isReduceMotionEnabled()` and
+  degrade to an instant final state when reduced motion is enabled.
 
 ## Style
 - TypeScript strict everywhere. Function components and hooks only.

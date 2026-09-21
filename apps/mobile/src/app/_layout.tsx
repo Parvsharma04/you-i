@@ -6,6 +6,7 @@ import {
   Stack,
   ThemeProvider as RouterThemeProvider,
 } from 'expo-router';
+import { KeyboardProvider } from 'react-native-keyboard-controller';
 import { CATEGORIES } from '@youandi/shared';
 import { useColorScheme } from 'react-native';
 
@@ -39,9 +40,17 @@ export default function RootLayout() {
         <AnimatedSplashOverlay />
         <PrivacyOverlay />
         <ConnectivityBanner />
-        <ErrorBoundary context={{ route: 'root' }}>
-          <Stack screenOptions={{ headerShown: false }} />
-        </ErrorBoundary>
+        <KeyboardProvider>
+          <ErrorBoundary context={{ route: 'root' }}>
+            <Stack
+              screenOptions={{
+                headerShown: false,
+                animation: 'default',
+                gestureEnabled: true,
+              }}
+            />
+          </ErrorBoundary>
+        </KeyboardProvider>
       </ThemeProvider>
     </RouterThemeProvider>
   );

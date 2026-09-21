@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import { Pressable, View } from 'react-native';
+import { View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useFocusEffect, type Href } from 'expo-router';
 import { type MySession, SESSION_STATUSES } from '@youandi/shared';
@@ -8,6 +8,7 @@ import { Card } from '@/components/ui/card';
 import { Text, type TextColor } from '@/components/ui/text';
 import { ApiError, NetworkError, TimeoutError, getMySessions } from '@/lib/api';
 import { getSession, saveSession } from '@/lib/storage';
+import { FadeInStagger, MotionPressable } from '@/theme';
 
 function formatCategory(category: string): string {
   return category
@@ -181,34 +182,35 @@ export default function ActiveGamesList({ onError }: ActiveGamesListProps) {
       </Text>
 
       <View className="gap-3">
-        {sessions.map((session) => {
+        {sessions.map((session, index) => {
           const status = statusForSession(session);
           return (
-            <Pressable
-              key={session.id}
-              onPress={() => handlePress(session)}
-              accessibilityRole="button"
-              accessibilityLabel={`${formatCategory(session.category)} game, ${status.label}`}
-            >
-              <Card className="py-4">
-                <View className="flex-row items-center justify-between">
-                  <View className="flex-1">
-                    <Text variant="body" bold color="primary">
-                      {formatCategory(session.category)}
-                    </Text>
-                    <Text variant="body-xs" color="muted">
-                      {session.questionCount} questions ·{' '}
-                      {session.role === 'player1' ? 'Host' : 'Player 2'}
-                    </Text>
+            <FadeInStagger key={session.id} index={index}>
+              <MotionPressable
+                onPress={() => handlePress(session)}
+                accessibilityRole="button"
+                accessibilityLabel={`${formatCategory(session.category)} game, ${status.label}`}
+              >
+                <Card className="py-4">
+                  <View className="flex-row items-center justify-between">
+                    <View className="flex-1">
+                      <Text variant="body" bold color="primary">
+                        {formatCategory(session.category)}
+                      </Text>
+                      <Text variant="body-xs" color="muted">
+                        {session.questionCount} questions ·{' '}
+                        {session.role === 'player1' ? 'Host' : 'Player 2'}
+                      </Text>
+                    </View>
+                    <View className="border-2 border-border-color bg-bg-secondary px-3 py-1">
+                      <Text variant="body-xs" bold color={status.color}>
+                        {status.label}
+                      </Text>
+                    </View>
                   </View>
-                  <View className="border-2 border-border-color bg-bg-secondary px-3 py-1">
-                    <Text variant="body-xs" bold color={status.color}>
-                      {status.label}
-                    </Text>
-                  </View>
-                </View>
-              </Card>
-            </Pressable>
+                </Card>
+              </MotionPressable>
+            </FadeInStagger>
           );
         })}
       </View>
