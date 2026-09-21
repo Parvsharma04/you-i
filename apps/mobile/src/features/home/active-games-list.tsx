@@ -1,6 +1,7 @@
 import { useCallback, useState } from 'react';
 import { View } from 'react-native';
 import { useRouter } from 'expo-router';
+import { FlashList } from '@shopify/flash-list';
 import { useFocusEffect, type Href } from 'expo-router';
 import { type MySession, SESSION_STATUSES } from '@youandi/shared';
 
@@ -202,11 +203,15 @@ export default function ActiveGamesList({
         Active games
       </Text>
 
-      <View className="gap-3">
-        {sessions.map((session, index) => {
+      <FlashList
+        data={sessions}
+        scrollEnabled={false}
+        keyExtractor={(session) => session.id}
+        ItemSeparatorComponent={() => <View className="h-3" />}
+        renderItem={({ item: session, index }) => {
           const status = statusForSession(session);
           return (
-            <FadeInStagger key={session.id} index={index}>
+            <FadeInStagger index={index}>
               <MotionPressable
                 onPress={() => handlePress(session)}
                 accessibilityRole="button"
@@ -250,8 +255,8 @@ export default function ActiveGamesList({
               </MotionPressable>
             </FadeInStagger>
           );
-        })}
-      </View>
+        }}
+      />
     </View>
   );
 

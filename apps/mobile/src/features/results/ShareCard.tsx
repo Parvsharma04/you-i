@@ -1,13 +1,43 @@
 import { forwardRef, useMemo } from 'react';
 import { View, type ViewProps } from 'react-native';
 
-import { Text } from '@/components/ui/text';
+import { Text as ThemedText, type TextProps } from '@/components/ui/text';
 import { cx } from '@/lib/cx';
 import type { Category, Result, ScoreRank } from '@youandi/shared';
 
 const CARD_WIDTH = 360;
 const CARD_HEIGHT = 640;
 const GRID_SIZE = 20;
+const SHARE_DARK = {
+  surface: '#100D16',
+  card: '#1C1826',
+  ink: '#F2EFF7',
+  ink2: '#B4ADBF',
+  ink3: '#81798F',
+  line: '#2E2839',
+  accent: '#FF5C8A',
+} as const;
+
+function Text({ color = 'primary', style, ...props }: TextProps) {
+  const colorValue =
+    color === 'primary'
+      ? SHARE_DARK.ink
+      : color === 'secondary'
+        ? SHARE_DARK.ink2
+        : color === 'muted'
+          ? SHARE_DARK.ink3
+          : color === 'accent'
+            ? SHARE_DARK.accent
+            : SHARE_DARK.ink;
+
+  return (
+    <ThemedText
+      {...props}
+      color={color}
+      style={[style, { color: colorValue }]}
+    />
+  );
+}
 
 function getScoreEmoji(score: number): string {
   if (score >= 90) return '★_★';
@@ -45,21 +75,33 @@ function GridBackground() {
   return (
     <View
       pointerEvents="none"
-      className="absolute inset-0 bg-bg-primary"
-      style={{ width: CARD_WIDTH, height: CARD_HEIGHT }}
+      className="absolute inset-0"
+      style={{
+        width: CARD_WIDTH,
+        height: CARD_HEIGHT,
+        backgroundColor: SHARE_DARK.surface,
+      }}
     >
       {horizontal.map((i) => (
         <View
           key={`h-${i}`}
           className="absolute left-0 right-0 bg-bg-secondary"
-          style={{ top: i * GRID_SIZE, height: 1 }}
+          style={{
+            top: i * GRID_SIZE,
+            height: 1,
+            backgroundColor: SHARE_DARK.line,
+          }}
         />
       ))}
       {vertical.map((i) => (
         <View
           key={`v-${i}`}
           className="absolute top-0 bottom-0 bg-bg-secondary"
-          style={{ left: i * GRID_SIZE, width: 1 }}
+          style={{
+            left: i * GRID_SIZE,
+            width: 1,
+            backgroundColor: SHARE_DARK.line,
+          }}
         />
       ))}
     </View>
@@ -76,14 +118,19 @@ function RetroShadowSurface({
     <View className="relative">
       <View
         pointerEvents="none"
-        className="absolute inset-0 bg-border-color"
+        className="absolute inset-0"
         style={{
           transform: [{ translateX: shadowSize }, { translateY: shadowSize }],
+          backgroundColor: SHARE_DARK.line,
         }}
       />
       <View
-        className={cx('relative bg-bg-card border-border-color', className)}
         {...props}
+        className={cx('relative', className)}
+        style={[
+          { backgroundColor: SHARE_DARK.card, borderColor: SHARE_DARK.line },
+          props.style,
+        ]}
       >
         {children}
       </View>
@@ -130,10 +177,12 @@ export const ShareCard = forwardRef<View, ShareCardProps>(function ShareCard(
       <View
         ref={ref}
         collapsable={false}
-        className="overflow-hidden bg-bg-primary border-6 border-border-color"
+        className="overflow-hidden border-6"
         style={{
           width: CARD_WIDTH,
           height: CARD_HEIGHT,
+          backgroundColor: SHARE_DARK.surface,
+          borderColor: SHARE_DARK.line,
         }}
       >
         <GridBackground />
