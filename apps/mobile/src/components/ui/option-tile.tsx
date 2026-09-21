@@ -47,7 +47,7 @@ export function OptionTile({
           borderRadius: theme.radius.tile,
           borderWidth: correct ? 2 : 1.5,
           borderColor: selected || correct ? theme.ink : theme.line,
-          backgroundColor: selected ? theme.ink : theme.card,
+          backgroundColor: theme.card,
           flexDirection: 'row',
           alignItems: 'center',
           gap: 12,
@@ -57,7 +57,7 @@ export function OptionTile({
       ]}
     >
       {emoji ? <Text variant="title">{emoji}</Text> : null}
-      <Text variant="body" bold color={selected ? 'white' : 'primary'}>
+      <Text variant="body" bold color="primary">
         {label}
       </Text>
     </MotionPressable>

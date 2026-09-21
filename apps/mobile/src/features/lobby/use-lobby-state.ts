@@ -3,6 +3,7 @@ import { useRouter } from 'expo-router';
 import { type Category, type PlayerJoinedPayload } from '@youandi/shared';
 
 import { useGameSocket } from '@/hooks/useGameSocket';
+import { useTheme } from '@/theme';
 import {
   useInterceptBack,
   useLeavingIntentionally,
@@ -23,6 +24,7 @@ export type LobbyError = {
 
 export function useLobbyState(sessionId: string | undefined) {
   const router = useRouter();
+  const { setCategory: setThemeCategory } = useTheme();
   const { leavingIntentionallyRef, markLeaving } = useLeavingIntentionally();
 
   const [status, setStatus] = useState<LobbyStatus>('loading');
@@ -71,6 +73,7 @@ export function useLobbyState(sessionId: string | undefined) {
         setPlayerId(stored.playerId);
         setRole(stored.role);
         setCategory(stored.category);
+        setThemeCategory(stored.category === 'spicy' ? 'spicy' : null);
         setQuestionCount(stored.questionCount);
         setRoomCode(stored.roomCode ?? null);
         setStatus(stored.role === 'player1' ? 'host' : 'waiting');
@@ -88,7 +91,7 @@ export function useLobbyState(sessionId: string | undefined) {
     return () => {
       mounted = false;
     };
-  }, [sessionId, loadSessionDetails]);
+  }, [loadSessionDetails, sessionId, setThemeCategory]);
 
   useEffect(() => {
     if (!codeExpiresAt) return;

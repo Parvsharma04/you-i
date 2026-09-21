@@ -5,15 +5,25 @@ import * as Haptics from 'expo-haptics';
 import { CATEGORIES, type Category } from '@youandi/shared';
 
 import { Button } from '@/components/ui/button';
-import { OptionTile } from '@/components/ui/option-tile';
+import { CategoryTile, ConfirmDialog, SegmentedControl } from '@/components/ui';
 import { Screen } from '@/components/ui/screen';
 import { Text } from '@/components/ui/text';
-import { ApiError, NetworkError, TimeoutError, createSession } from '@/lib/api';
-import { saveSession } from '@/lib/storage';
+import { useTheme } from '@/theme';
 
 const HOME_CATEGORIES: Category[] = CATEGORIES.slice(0, 5);
 const SPICY_CATEGORY = CATEGORIES[4];
-const COUNT_OPTIONS: number[] = [5, 10, 15, 20];
+const COUNT_OPTIONS = [5, 10, 20] as const;
+
+const CATEGORY_META: Record<Category, { emoji: string; description: string }> =
+  {
+    love: { emoji: '♥', description: 'Romance and closeness' },
+    friendship: { emoji: '✦', description: 'The friends test' },
+    deep_talk: { emoji: '◌', description: 'Go beneath the surface' },
+    fun: { emoji: '✳', description: 'Keep it light' },
+    spicy: { emoji: '✹', description: 'For grown-up players' },
+    fantasy: { emoji: '◇', description: 'Imagine the possibilities' },
+    interests: { emoji: '◎', description: 'What makes you you' },
+  };
 
 function formatCategory(category: Category): string {
   return category
@@ -29,90 +39,52 @@ export default function CreateScreen() {
     HOME_CATEGORIES[0],
   );
   const [selectedCount, setSelectedCount] = useState<number>(10);
-  const [isPending, setIsPending] = useState(false);
-  const [error, setError] = useState<{
-    message: string;
-    canRetry: boolean;
-  } | null>(null);
+  const [showSpicyConfirmation, setShowSpicyConfirmation] = useState(false);
+  const { setCategory } = useTheme();
 
-  const handleSelectCategory = useCallback((category: Category) => {
-    void Haptics.selectionAsync();
-    if (category === SPICY_CATEGORY) {
-      // TODO(phase 11): show an age-confirmation gate before selecting 'spicy'.
-    }
-    setSelectedCategory(category);
-    setError(null);
-  }, []);
+  const selectCategory = useCallback(
+    (category: Category) => {
+      void Haptics.selectionAsync();
+      setSelectedCategory(category);
+      setCategory(category === SPICY_CATEGORY ? 'spicy' : null);
+    },
+    [setCategory],
+  );
+
+  const handleSelectCategory = useCallback(
+    (category: Category) => {
+      if (category === SPICY_CATEGORY && selectedCategory !== SPICY_CATEGORY) {
+        setShowSpicyConfirmation(true);
+        return;
+      }
+      selectCategory(category);
+    },
+    [selectCategory, selectedCategory],
+  );
 
   const handleSelectCount = useCallback((count: number) => {
     setSelectedCount(count);
-    setError(null);
   }, []);
 
   const handleCreateSession = useCallback(async () => {
-    if (isPending) return;
-
-    setIsPending(true);
-    setError(null);
-
-    try {
-      const { sessionId, playerId, code } = await createSession({
+    router.push({
+      pathname: '/lobby/pending',
+      params: {
         category: selectedCategory,
-        questionCount: selectedCount,
-      });
-
-      await saveSession({
-        sessionId,
-        playerId,
-        role: 'player1',
-        category: selectedCategory,
-        questionCount: selectedCount,
-        roomCode: code,
-        savedAt: new Date().toISOString(),
-      });
-
-      router.replace(`/lobby/${sessionId}`);
-    } catch (err) {
-      setIsPending(false);
-
-      if (err instanceof NetworkError || err instanceof TimeoutError) {
-        setError({
-          message: "You're offline. Check your connection and try again.",
-          canRetry: true,
-        });
-      } else if (err instanceof ApiError && err.status === 429) {
-        setError({
-          message: 'You are creating games too quickly. Slow down.',
-          canRetry: true,
-        });
-      } else if (err instanceof ApiError && err.status >= 500) {
-        setError({
-          message: 'Something went wrong on our end. Please try again.',
-          canRetry: true,
-        });
-      } else {
-        const message =
-          err instanceof Error
-            ? err.message
-            : 'Could not create session. Please try again.';
-        setError({ message, canRetry: true });
-      }
-    }
-  }, [isPending, selectedCategory, selectedCount, router]);
+        questionCount: String(selectedCount),
+      },
+    });
+  }, [router, selectedCategory, selectedCount]);
 
   return (
     <Screen>
       <ScrollView className="flex-1">
         <View className="flex-grow justify-center px-6 py-8">
-          <Text
-            variant="display-xl"
-            color="primary"
-            className="mb-2 text-center"
-          >
-            START GAME
+          <Text variant="display-xl" color="primary" className="mb-2">
+            Start a game
           </Text>
-          <Text variant="body" color="secondary" className="mb-8 text-center">
-            Pick a category and question count.
+          <Text variant="body" color="secondary" className="mb-8">
+            Pick the feeling, then the pace.
           </Text>
 
           <View className="mb-6">
@@ -123,15 +95,23 @@ export default function CreateScreen() {
             >
               Category
             </Text>
-            {HOME_CATEGORIES.map((category) => (
-              <OptionTile
-                key={category}
-                label={formatCategory(category)}
-                selected={selectedCategory === category}
-                disabled={isPending}
-                onPress={() => handleSelectCategory(category)}
-              />
-            ))}
+            <View className="flex-row flex-wrap gap-3">
+              {HOME_CATEGORIES.map((category) => (
+                <View
+                  key={category}
+                  className={category === SPICY_CATEGORY ? 'w-full' : 'w-[48%]'}
+                >
+                  <CategoryTile
+                    name={formatCategory(category)}
+                    emoji={CATEGORY_META[category].emoji}
+                    description={CATEGORY_META[category].description}
+                    spicy={category === SPICY_CATEGORY}
+                    selected={selectedCategory === category}
+                    onPress={() => handleSelectCategory(category)}
+                  />
+                </View>
+              ))}
+            </View>
           </View>
 
           <View className="mb-8">
@@ -142,41 +122,32 @@ export default function CreateScreen() {
             >
               Questions
             </Text>
-            <View className="flex-row gap-2">
-              {COUNT_OPTIONS.map((count) => (
-                <View key={count} className="flex-1">
-                  <OptionTile
-                    label={String(count)}
-                    selected={selectedCount === count}
-                    disabled={isPending}
-                    onPress={() => handleSelectCount(count)}
-                  />
-                </View>
-              ))}
-            </View>
+            <SegmentedControl
+              options={COUNT_OPTIONS.map((count) => ({
+                label: `${count}`,
+                value: count,
+              }))}
+              value={selectedCount}
+              onChange={handleSelectCount}
+            />
           </View>
 
-          {error && (
-            <Text variant="body-sm" color="accent" className="mb-4 text-center">
-              {error.message}
-            </Text>
-          )}
-
           <View className="items-center">
-            <Button
-              title={
-                isPending
-                  ? 'CREATING GAME…'
-                  : error?.canRetry
-                    ? 'TRY AGAIN'
-                    : 'CREATE GAME'
-              }
-              onPress={handleCreateSession}
-              disabled={isPending}
-            />
+            <Button title="CREATE GAME" onPress={handleCreateSession} />
           </View>
         </View>
       </ScrollView>
+      <ConfirmDialog
+        visible={showSpicyConfirmation}
+        title="A spicier round"
+        message="Spicy is for players aged 18 and over. Continue?"
+        confirmLabel="I'M 18+"
+        onCancel={() => setShowSpicyConfirmation(false)}
+        onConfirm={() => {
+          setShowSpicyConfirmation(false);
+          selectCategory(SPICY_CATEGORY);
+        }}
+      />
     </Screen>
   );
 }

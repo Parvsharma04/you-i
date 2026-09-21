@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Share, View } from 'react-native';
 import { useRouter } from 'expo-router';
 
-import { Button } from '@/components/ui/button';
+import { Button, CodeInput, normalizeCode } from '@/components/ui';
 import { Screen } from '@/components/ui/screen';
 import { Text } from '@/components/ui/text';
 import {
@@ -13,18 +13,8 @@ import {
 } from '@/lib/api';
 import { env } from '@/lib/env';
 import { saveSession } from '@/lib/storage';
-import CodeInput from './code-input';
 
 const CODE_LENGTH = 6;
-
-function normalizeCode(raw: string): string {
-  return raw
-    .toUpperCase()
-    .replace(/O/g, '0')
-    .replace(/[IL]/g, '1')
-    .replace(/[^A-Z0-9]/g, '')
-    .slice(0, CODE_LENGTH);
-}
 
 function messageForError(err: unknown): string {
   if (err instanceof NetworkError || err instanceof TimeoutError) {
@@ -44,6 +34,8 @@ function messageForError(err: unknown): string {
         return "You can't join your own game.";
       case 'RATE_LIMITED':
         return 'Too many attempts. Take a break and try again.';
+      case 'ALREADY_JOINED':
+        return 'You are already in this game.';
       default:
         return err.message;
     }
@@ -126,7 +118,7 @@ export default function JoinScreen({
           onChange={setCode}
           onComplete={submit}
           error={error !== null}
-          loading={isLoading}
+          pending={isLoading}
           autoFocus={!autoSubmit}
         />
 

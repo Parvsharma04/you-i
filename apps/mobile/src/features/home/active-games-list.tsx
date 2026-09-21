@@ -14,6 +14,7 @@ import { Text, type TextColor } from '@/components/ui/text';
 import { ApiError, NetworkError, TimeoutError, getMySessions } from '@/lib/api';
 import { getSession, saveSession } from '@/lib/storage';
 import { FadeInStagger, MotionPressable } from '@/theme';
+import { useTheme } from '@/theme';
 
 function formatCategory(category: string): string {
   return category
@@ -101,10 +102,17 @@ function routeForSession(session: MySession): string | null {
 
 type ActiveGamesListProps = {
   onError?: (message: string) => void;
+  refreshKey?: number;
+  onRefreshComplete?: () => void;
 };
 
-export default function ActiveGamesList({ onError }: ActiveGamesListProps) {
+export default function ActiveGamesList({
+  onError,
+  refreshKey = 0,
+  onRefreshComplete,
+}: ActiveGamesListProps) {
   const router = useRouter();
+  const theme = useTheme();
   const [sessions, setSessions] = useState<MySession[]>([]);
   const [loading, setLoading] = useState(false);
   const showLoading = useMinimumDuration(loading);
@@ -126,13 +134,20 @@ export default function ActiveGamesList({ onError }: ActiveGamesListProps) {
       }
     } finally {
       setLoading(false);
+      onRefreshComplete?.();
     }
-  }, [onError]);
+  }, [onError, onRefreshComplete]);
 
   useFocusEffect(
     useCallback(() => {
       void load();
     }, [load]),
+  );
+
+  useFocusEffect(
+    useCallback(() => {
+      if (refreshKey > 0) void load();
+    }, [load, refreshKey]),
   );
 
   const handlePress = useCallback(
@@ -199,14 +214,31 @@ export default function ActiveGamesList({ onError }: ActiveGamesListProps) {
               >
                 <Card className="py-4">
                   <View className="flex-row items-center justify-between">
-                    <View className="flex-1">
-                      <Text variant="body" bold color="primary">
-                        {formatCategory(session.category)}
-                      </Text>
-                      <Text variant="body-xs" color="muted">
-                        {session.questionCount} questions ·{' '}
-                        {session.role === 'player1' ? 'Host' : 'Player 2'}
-                      </Text>
+                    <View className="flex-1 flex-row items-center gap-3">
+                      <View
+                        className="h-3 w-3 rounded-full"
+                        style={{
+                          backgroundColor:
+                            session.category === 'love'
+                              ? theme.category.love
+                              : session.category === 'friendship'
+                                ? theme.category.friendship
+                                : session.category === 'deep_talk'
+                                  ? theme.category.deepTalk
+                                  : session.category === 'spicy'
+                                    ? theme.category.spicy
+                                    : theme.category.fun,
+                        }}
+                      />
+                      <View className="flex-1">
+                        <Text variant="body" bold color="primary">
+                          {formatCategory(session.category)}
+                        </Text>
+                        <Text variant="body-xs" color="muted">
+                          {session.questionCount} questions ·{' '}
+                          {session.role === 'player1' ? 'Host' : 'Player 2'}
+                        </Text>
+                      </View>
                     </View>
                     <View className="border-2 border-border-color bg-bg-secondary px-3 py-1">
                       <Text variant="body-xs" bold color={status.color}>

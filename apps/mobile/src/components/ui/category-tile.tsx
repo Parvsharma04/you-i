@@ -31,6 +31,7 @@ export function CategoryTile({
   ...props
 }: CategoryTileProps) {
   const theme = useTheme();
+  const dark = spicy;
   return (
     <MotionPressable
       {...props}
@@ -44,7 +45,7 @@ export function CategoryTile({
           minWidth: 48,
           padding: 18,
           borderRadius: theme.radius.card,
-          backgroundColor: selected || spicy ? theme.ink : theme.card,
+          backgroundColor: dark ? theme.ink : theme.card,
           borderWidth: selected ? 1.5 : 0,
           borderColor: theme.ink,
           flexDirection: 'row',
@@ -56,18 +57,11 @@ export function CategoryTile({
     >
       <Text variant="display">{emoji}</Text>
       <View style={{ flex: 1, gap: 2 }}>
-        <Text
-          variant="title"
-          color={selected || spicy ? 'white' : 'primary'}
-          bold
-        >
+        <Text variant="title" color={dark ? 'white' : 'primary'} bold>
           {name}
         </Text>
         {description ? (
-          <Text
-            variant="label"
-            color={selected || spicy ? 'white' : 'secondary'}
-          >
+          <Text variant="label" color={dark ? 'white' : 'secondary'}>
             {description}
           </Text>
         ) : null}

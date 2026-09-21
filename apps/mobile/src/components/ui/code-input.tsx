@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, TextInput, View } from 'react-native';
+import * as Clipboard from 'expo-clipboard';
 import * as Haptics from 'expo-haptics';
 import Animated, {
   useAnimatedStyle,
@@ -12,6 +13,7 @@ import { useAccessibilityReduceMotion } from '@/theme';
 import { useTheme } from '@/theme';
 
 import { Text } from './text';
+import { Button } from './button';
 
 const CODE_LENGTH = 6;
 
@@ -51,6 +53,7 @@ export function CodeInput({
     start: value.length,
     end: value.length,
   });
+  const [pasteAvailable, setPasteAvailable] = useState(false);
   const previousError = useRef(error);
   const chars = useMemo(
     () => Array.from({ length: CODE_LENGTH }, (_, i) => value[i] ?? ''),
@@ -73,6 +76,16 @@ export function CodeInput({
     }
     previousError.current = error;
   }, [error, reduceMotion, shake, value.length]);
+
+  useEffect(() => {
+    let mounted = true;
+    void Clipboard.hasStringAsync().then((hasString) => {
+      if (mounted) setPasteAvailable(hasString);
+    });
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   const update = useCallback(
     (raw: string) => {
@@ -105,6 +118,12 @@ export function CodeInput({
     transform: [{ translateX: shake.value }],
   }));
 
+  const handlePaste = useCallback(async () => {
+    const pasted = await Clipboard.getStringAsync();
+    update(pasted);
+    inputRef.current?.focus();
+  }, [update]);
+
   return (
     <Animated.View style={animatedStyle}>
       <Pressable
@@ -135,7 +154,7 @@ export function CodeInput({
           style={{ position: 'absolute', width: 1, height: 1, opacity: 0 }}
         />
         <View
-          style={{ flexDirection: 'row', justifyContent: 'center', gap: 8 }}
+          style={{ flexDirection: 'row', justifyContent: 'center', gap: 6 }}
         >
           {chars.map((char, index) => {
             const selected = selection.start <= index && index < selection.end;
@@ -143,9 +162,9 @@ export function CodeInput({
               <View
                 key={index}
                 style={{
-                  width: 48,
+                  width: 44,
                   height: 56,
-                  minWidth: 48,
+                  minWidth: 44,
                   minHeight: 48,
                   alignItems: 'center',
                   justifyContent: 'center',
@@ -166,6 +185,11 @@ export function CodeInput({
           })}
         </View>
       </Pressable>
+      {pasteAvailable && !pending ? (
+        <View className="mt-4 items-center">
+          <Button title="PASTE FROM CLIPBOARD" onPress={handlePaste} />
+        </View>
+      ) : null}
     </Animated.View>
   );
 }
