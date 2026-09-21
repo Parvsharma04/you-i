@@ -1,119 +1,150 @@
-import { useState } from 'react';
-import { ScrollView, View } from 'react-native';
+import { ScrollView, Text, View } from 'react-native';
 
-import { Button, Card, OptionTile, Screen, Text } from '@/components/ui';
-import type { TextColor, TextVariant } from '@/components/ui/text';
+import { Screen } from '@/components/ui';
+import { FONT_FAMILY } from '@/lib/fonts';
+import {
+  CATEGORY_NAMES,
+  categoryColors,
+  resolveTheme,
+  themeTokens,
+  type CategoryName,
+  type ColorScheme,
+} from '@/theme';
 
-const COLOR_SWATCHES: Array<{ label: string; token: string; hex: string }> = [
-  { label: 'bg-primary', token: 'bg-bg-primary', hex: '#fff0f5' },
-  { label: 'bg-secondary', token: 'bg-bg-secondary', hex: '#ffe4e1' },
-  { label: 'bg-card', token: 'bg-bg-card', hex: '#ffffff' },
-  { label: 'text-primary', token: 'bg-text-primary', hex: '#8b0000' },
-  { label: 'text-secondary', token: 'bg-text-secondary', hex: '#a52a2a' },
-  { label: 'text-muted', token: 'bg-text-muted', hex: '#cd5c5c' },
-  { label: 'accent', token: 'bg-accent', hex: '#ff1493' },
-  { label: 'border-color', token: 'bg-border-color', hex: '#8b0000' },
-];
+const paletteNames = [
+  'surface',
+  'card',
+  'ink',
+  'ink2',
+  'ink3',
+  'line',
+] as const;
+const categoryClassNames: Record<CategoryName, string> = {
+  love: 'bg-category-love',
+  friendship: 'bg-category-friendship',
+  deepTalk: 'bg-category-deepTalk',
+  fun: 'bg-category-fun',
+  spicy: 'bg-category-spicy',
+};
 
-const TYPE_SAMPLES: Array<{ variant: TextVariant; label: string }> = [
-  { variant: 'display-xl', label: 'Display XL — h1' },
-  { variant: 'display-lg', label: 'Display LG — h2' },
-  { variant: 'display-md', label: 'Display MD — h3' },
-  { variant: 'body', label: 'Body — Space Mono 400' },
-  { variant: 'body-sm', label: 'Body SM — 0.9rem' },
-  { variant: 'body-xs', label: 'Body XS — 0.85rem' },
-];
-
-const TEXT_COLORS: TextColor[] = ['primary', 'secondary', 'muted', 'accent'];
-
-function SectionTitle({ children }: { children: string }) {
+function Swatch({ label, color }: { label: string; color: string }) {
   return (
-    <Text variant="display-md" className="mb-3 mt-8">
-      {children}
-    </Text>
+    <View className="mb-4 w-[155px]">
+      <View
+        accessibilityLabel={`${label} ${color}`}
+        className="h-16 rounded-card border border-line"
+        style={{ backgroundColor: color }}
+      />
+      <Text className="mt-2 font-body text-sm text-ink">{label}</Text>
+      <Text className="font-body text-xs text-ink-2">{color}</Text>
+    </View>
   );
 }
 
-/**
- * Scratch route — /debug/tokens — for checking every color, type size, and
- * primitive on a real device. Not linked from app navigation; navigate to
- * it directly (e.g. `router.push('/debug/tokens')` or by typing the path
- * into the dev menu deep link field). Not part of the shipped product UI.
- */
-export default function TokensScreen() {
-  const [selected, setSelected] = useState<number | null>(0);
+function Palette({ scheme }: { scheme: ColorScheme }) {
+  const theme = resolveTheme(scheme);
+  return (
+    <View className="mb-6">
+      <Text className="mb-3 font-display-700 text-2xl text-ink">
+        {scheme} palette
+      </Text>
+      <View className="flex-row flex-wrap justify-between">
+        {paletteNames.map((name) => (
+          <Swatch key={name} label={name} color={theme[name]} />
+        ))}
+      </View>
+    </View>
+  );
+}
 
+export default function TokensScreen() {
   return (
     <Screen>
       <ScrollView
-        contentContainerClassName="p-5 pb-15"
+        contentContainerClassName="px-5 pb-12 pt-6"
         showsVerticalScrollIndicator={false}
       >
-        <Text variant="display-xl">Design Tokens</Text>
-        <Text variant="body-sm" color="secondary">
-          Scratch route — apps/mobile/src/features/debug/tokens-screen.tsx
+        <Text className="font-display-800 text-[52px] leading-[58px] text-ink">
+          Theme tokens
+        </Text>
+        <Text className="mb-8 font-body text-base text-ink-2">
+          All palettes, category tints, type sizes, and the spicy dark override.
         </Text>
 
-        <SectionTitle>Colors</SectionTitle>
-        <View className="flex-row flex-wrap gap-3">
-          {COLOR_SWATCHES.map((swatch) => (
-            <View key={swatch.label} className="w-[150px]">
+        <Palette scheme="light" />
+        <Palette scheme="dark" />
+
+        <Text className="mb-3 font-display-700 text-2xl text-ink">
+          Category tints
+        </Text>
+        <View className="mb-6 flex-row flex-wrap justify-between">
+          {CATEGORY_NAMES.map((name) => (
+            <View key={name} className="mb-4 w-[155px]">
               <View
-                className={`h-16 border-3 border-border-color ${swatch.token}`}
+                className={`h-16 rounded-card ${categoryClassNames[name]}`}
               />
-              <Text variant="body-xs" className="mt-1">
-                {swatch.label}
-              </Text>
-              <Text variant="body-xs" color="muted">
-                {swatch.hex}
+              <Text className="mt-2 font-body text-sm text-ink">{name}</Text>
+              <Text className="font-body text-xs text-ink-2">
+                {categoryColors[name]}
               </Text>
             </View>
           ))}
         </View>
 
-        <SectionTitle>Type scale</SectionTitle>
-        <View className="gap-2">
-          {TYPE_SAMPLES.map((sample) => (
-            <Text key={sample.variant} variant={sample.variant}>
-              {sample.label}
+        <Text className="mb-3 font-display-700 text-2xl text-ink">
+          Resolved layers
+        </Text>
+        <View className="mb-6 gap-3">
+          {CATEGORY_NAMES.map((category) => {
+            const theme = resolveTheme('light', category);
+            return (
+              <View
+                key={category}
+                className="flex-row items-center rounded-card bg-card p-4"
+              >
+                <View
+                  className="mr-3 h-8 w-8 rounded-full"
+                  style={{ backgroundColor: theme.accent }}
+                />
+                <Text className="font-body-600 text-base text-ink">
+                  {category}: {theme.scheme} palette
+                </Text>
+              </View>
+            );
+          })}
+        </View>
+
+        <Text className="mb-3 font-display-700 text-2xl text-ink">
+          Type scale
+        </Text>
+        <View className="gap-3">
+          {Object.entries(themeTokens.type).map(([name, size]) => (
+            <Text
+              key={name}
+              className="font-display text-ink"
+              style={{ fontSize: size, lineHeight: size * 1.15 }}
+            >
+              {name} · {size}
             </Text>
           ))}
         </View>
 
-        <SectionTitle>Text colors</SectionTitle>
-        <View className="gap-1">
-          {TEXT_COLORS.map((color) => (
-            <Text key={color} variant="body" color={color}>
-              text color: {color}
-            </Text>
-          ))}
-        </View>
-
-        <SectionTitle>Button</SectionTitle>
-        <View className="flex-row flex-wrap gap-4">
-          <Button title="Primary" onPress={() => {}} />
-          <Button title="Disabled" disabled onPress={() => {}} />
-        </View>
-
-        <SectionTitle>Card</SectionTitle>
-        <Card>
-          <Text variant="display-md">Glass card</Text>
-          <Text variant="body" color="secondary" className="mt-2">
-            Native port of `.glass-card` — bg-card, 3px border, retro shadow.
-          </Text>
-        </Card>
-
-        <SectionTitle>OptionTile (MCQ choice)</SectionTitle>
-        <View className="mt-2">
-          {['Option A', 'Option B', 'Option C'].map((label, index) => (
-            <OptionTile
-              key={label}
-              label={label}
-              selected={selected === index}
-              onPress={() => setSelected(index)}
-            />
-          ))}
-        </View>
+        <Text className="mb-3 mt-8 font-display-700 text-2xl text-ink">
+          Geometry
+        </Text>
+        <Text className="font-body text-base text-ink-2">
+          Radius: tile {themeTokens.radius.tile}, card {themeTokens.radius.card}
+          , screen {themeTokens.radius.screen}
+        </Text>
+        <Text className="mt-2 font-body text-base text-ink-2">
+          Spacing: {Object.values(themeTokens.spacing).join(' · ')}
+        </Text>
+        <Text
+          className="mt-2 font-body text-base text-ink-2"
+          style={{ fontFamily: FONT_FAMILY.body }}
+        >
+          Shadow: {themeTokens.shadow}
+        </Text>
       </ScrollView>
     </Screen>
   );

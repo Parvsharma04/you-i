@@ -3,12 +3,16 @@
  * https://docs.expo.dev/guides/color-schemes/
  */
 
-import { Colors } from '@/components/theme';
-import { useColorScheme } from '@/components/hooks/use-color-scheme';
+import { useTheme as useResolvedTheme } from '@/theme';
 
 export function useTheme() {
-  const scheme = useColorScheme();
-  const theme = scheme === 'unspecified' ? 'light' : scheme;
+  const theme = useResolvedTheme();
 
-  return Colors[theme];
+  return {
+    text: theme.ink,
+    background: theme.surface,
+    backgroundElement: theme.card,
+    backgroundSelected: theme.line,
+    textSecondary: theme.ink2,
+  };
 }

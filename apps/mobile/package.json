@@ -14,8 +14,6 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@expo-google-fonts/space-mono": "^0.4.2",
-    "@expo-google-fonts/vt323": "^0.4.1",
     "@expo/ui": "~57.0.19",
     "@youandi/shared": "workspace:*",
     "expo": "~57.0.24",

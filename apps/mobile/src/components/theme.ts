@@ -3,24 +3,24 @@
  * There are many other ways to style your app. For example, [Nativewind](https://www.nativewind.dev/), [Tamagui](https://tamagui.dev/), [unistyles](https://reactnativeunistyles.vercel.app), etc.
  */
 
-import '@/components/global.css';
-
 import { Platform } from 'react-native';
+
+import { themeTokens } from '@/theme';
 
 export const Colors = {
   light: {
-    text: '#000000',
-    background: '#ffffff',
-    backgroundElement: '#F0F0F3',
-    backgroundSelected: '#E0E1E6',
-    textSecondary: '#60646C',
+    text: themeTokens.palettes.light.ink,
+    background: themeTokens.palettes.light.surface,
+    backgroundElement: themeTokens.palettes.light.card,
+    backgroundSelected: themeTokens.palettes.light.line,
+    textSecondary: themeTokens.palettes.light.ink2,
   },
   dark: {
-    text: '#ffffff',
-    background: '#000000',
-    backgroundElement: '#212225',
-    backgroundSelected: '#2E3135',
-    textSecondary: '#B0B4BA',
+    text: themeTokens.palettes.dark.ink,
+    background: themeTokens.palettes.dark.surface,
+    backgroundElement: themeTokens.palettes.dark.card,
+    backgroundSelected: themeTokens.palettes.dark.line,
+    textSecondary: themeTokens.palettes.dark.ink2,
   },
 } as const;
 

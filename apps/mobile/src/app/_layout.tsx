@@ -1,6 +1,11 @@
 import '../../global.css';
 
-import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from 'expo-router';
+import {
+  DarkTheme,
+  DefaultTheme,
+  Stack,
+  ThemeProvider as RouterThemeProvider,
+} from 'expo-router';
 import { CATEGORIES } from '@youandi/shared';
 import { useColorScheme } from 'react-native';
 
@@ -9,6 +14,7 @@ import { ConnectivityBanner } from '@/components/connectivity-banner';
 import { ErrorBoundary } from '@/components/error-boundary';
 import { PrivacyOverlay } from '@/components/privacy-overlay';
 import { useAppFonts } from '@/lib/fonts';
+import { ThemeProvider } from '@/theme';
 
 // Smoke test: confirms @youandi/shared resolves correctly through the
 // pnpm workspace + Metro config. Safe no-op in production.
@@ -20,20 +26,23 @@ export default function RootLayout() {
   const colorScheme = useColorScheme();
   const { fontsLoaded, fontError } = useAppFonts();
 
-  // Keep the native splash screen up until VT323/Space Mono are ready, so
-  // the retro type never flashes in with a fallback system font.
+  // Keep the native splash screen up until every static app font is ready.
   if (!fontsLoaded && !fontError) {
     return null;
   }
 
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <AnimatedSplashOverlay />
-      <PrivacyOverlay />
-      <ConnectivityBanner />
-      <ErrorBoundary context={{ route: 'root' }}>
-        <Stack screenOptions={{ headerShown: false }} />
-      </ErrorBoundary>
-    </ThemeProvider>
+    <RouterThemeProvider
+      value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}
+    >
+      <ThemeProvider>
+        <AnimatedSplashOverlay />
+        <PrivacyOverlay />
+        <ConnectivityBanner />
+        <ErrorBoundary context={{ route: 'root' }}>
+          <Stack screenOptions={{ headerShown: false }} />
+        </ErrorBoundary>
+      </ThemeProvider>
+    </RouterThemeProvider>
   );
 }

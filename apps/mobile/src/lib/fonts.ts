@@ -1,36 +1,41 @@
-import {
-  SpaceMono_400Regular,
-  SpaceMono_700Bold,
-  useFonts as useSpaceMono,
-} from '@expo-google-fonts/space-mono';
-import {
-  VT323_400Regular,
-  useFonts as useVt323,
-} from '@expo-google-fonts/vt323';
+import * as SplashScreen from 'expo-splash-screen';
+import { useFonts } from 'expo-font';
 
-/**
- * Native port of the two Google Fonts the web app loads via
- * `@import url('https://fonts.googleapis.com/css2?family=VT323&family=Space+Mono...')`
- * in globals.css. Only the weights actually used on web are bundled:
- * VT323 (single weight) for display type, Space Mono 400/700 for body type.
- * Matches `fontFamily.display`/`fontFamily.body`/`fontFamily.body-bold` in
- * tailwind.config.js.
- */
+void SplashScreen.preventAutoHideAsync();
+
+const bricolageFonts = {
+  BricolageGrotesque_400: require('@/assets/fonts/BricolageGrotesque-400.ttf'),
+  BricolageGrotesque_600: require('@/assets/fonts/BricolageGrotesque-600.ttf'),
+  BricolageGrotesque_700: require('@/assets/fonts/BricolageGrotesque-700.ttf'),
+  BricolageGrotesque_800: require('@/assets/fonts/BricolageGrotesque-800.ttf'),
+};
+
+const figtreeFonts = {
+  Figtree_400: require('@/assets/fonts/Figtree-400.ttf'),
+  Figtree_600: require('@/assets/fonts/Figtree-600.ttf'),
+  Figtree_700: require('@/assets/fonts/Figtree-700.ttf'),
+  Figtree_800: require('@/assets/fonts/Figtree-800.ttf'),
+};
+
 export const FONT_FAMILY = {
-  display: 'VT323_400Regular',
-  body: 'SpaceMono_400Regular',
-  bodyBold: 'SpaceMono_700Bold',
+  display: 'BricolageGrotesque_400',
+  display600: 'BricolageGrotesque_600',
+  display700: 'BricolageGrotesque_700',
+  display800: 'BricolageGrotesque_800',
+  body: 'Figtree_400',
+  body600: 'Figtree_600',
+  body700: 'Figtree_700',
+  body800: 'Figtree_800',
 } as const;
 
 export function useAppFonts() {
-  const [vt323Loaded, vt323Error] = useVt323({ VT323_400Regular });
-  const [spaceMonoLoaded, spaceMonoError] = useSpaceMono({
-    SpaceMono_400Regular,
-    SpaceMono_700Bold,
+  const [fontsLoaded, fontError] = useFonts({
+    ...bricolageFonts,
+    ...figtreeFonts,
   });
 
   return {
-    fontsLoaded: vt323Loaded && spaceMonoLoaded,
-    fontError: vt323Error ?? spaceMonoError ?? null,
+    fontsLoaded,
+    fontError,
   };
 }
