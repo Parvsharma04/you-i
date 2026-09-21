@@ -5,6 +5,11 @@ import { useFocusEffect, type Href } from 'expo-router';
 import { type MySession, SESSION_STATUSES } from '@youandi/shared';
 
 import { Card } from '@/components/ui/card';
+import {
+  GamesListSkeleton,
+  SkeletonSwap,
+  useMinimumDuration,
+} from '@/components/loading';
 import { Text, type TextColor } from '@/components/ui/text';
 import { ApiError, NetworkError, TimeoutError, getMySessions } from '@/lib/api';
 import { getSession, saveSession } from '@/lib/storage';
@@ -102,6 +107,7 @@ export default function ActiveGamesList({ onError }: ActiveGamesListProps) {
   const router = useRouter();
   const [sessions, setSessions] = useState<MySession[]>([]);
   const [loading, setLoading] = useState(false);
+  const showLoading = useMinimumDuration(loading);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -167,11 +173,11 @@ export default function ActiveGamesList({ onError }: ActiveGamesListProps) {
     [router],
   );
 
-  if (sessions.length === 0 && !loading) {
+  if (sessions.length === 0 && !showLoading) {
     return null;
   }
 
-  return (
+  const games = (
     <View className="mt-8">
       <Text
         variant="body-sm"
@@ -215,5 +221,11 @@ export default function ActiveGamesList({ onError }: ActiveGamesListProps) {
         })}
       </View>
     </View>
+  );
+
+  return (
+    <SkeletonSwap isLoading={showLoading} skeleton={<GamesListSkeleton />}>
+      {games}
+    </SkeletonSwap>
   );
 }

@@ -2,7 +2,7 @@ import { Keyboard, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 
-import { LoadingView } from '@/components/loading-view';
+import { GeneratingQuestions } from '@/components/loading';
 import { Button } from '@/components/ui/button';
 import { Screen } from '@/components/ui/screen';
 import { Text } from '@/components/ui/text';
@@ -85,10 +85,7 @@ export default function PassAndPlayScreen({
   if (isLoading) {
     return (
       <Screen>
-        <LoadingView
-          title="LOADING GAME…"
-          subtitle="Finding whose turn it is."
-        />
+        <GeneratingQuestions />
       </Screen>
     );
   }
@@ -116,10 +113,7 @@ export default function PassAndPlayScreen({
   if (!currentQuestion) {
     return (
       <Screen>
-        <LoadingView
-          title="LOADING QUESTIONS…"
-          subtitle="Getting this round ready."
-        />
+        <GeneratingQuestions />
       </Screen>
     );
   }

@@ -1,12 +1,10 @@
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { View } from 'react-native';
 
 import { useConnectivity } from '@/hooks/useConnectivity';
 
-import { Text } from './ui/text';
-
 /**
- * App-level banner that distinguishes "no internet" from "server unreachable".
- * Sticks to the top safe area and sits above every screen.
+ * App-level reconnect indicator. It overlays the screen so reconnecting never
+ * shifts or blocks the content below it.
  */
 export function ConnectivityBanner() {
   const connectivity = useConnectivity();
@@ -18,26 +16,15 @@ export function ConnectivityBanner() {
   const isNoInternet = connectivity.kind === 'noInternet';
 
   return (
-    <SafeAreaView
-      edges={['top']}
+    <View
+      pointerEvents="none"
       accessibilityRole="alert"
       accessibilityLabel={
         isNoInternet
           ? 'No internet connection. Check your network settings.'
-          : 'Server unreachable. We are working on it.'
+          : 'Server unreachable. Retrying.'
       }
-      className={`items-center justify-center px-4 py-2 ${isNoInternet ? 'bg-accent' : 'bg-text-muted'}`}
-    >
-      <Text
-        variant="body-sm"
-        bold
-        color="white"
-        className="text-center uppercase tracking-widest"
-      >
-        {isNoInternet
-          ? 'NO INTERNET — CHECK CONNECTION'
-          : 'SERVER UNREACHABLE — RETRYING'}
-      </Text>
-    </SafeAreaView>
+      className={`absolute left-0 right-0 top-0 z-50 h-1 ${isNoInternet ? 'bg-accent' : 'bg-text-muted'}`}
+    />
   );
 }

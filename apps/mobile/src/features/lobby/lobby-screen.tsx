@@ -6,6 +6,11 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Screen } from '@/components/ui/screen';
 import { Text } from '@/components/ui/text';
+import {
+  Skeleton,
+  SkeletonText,
+  useMinimumDuration,
+} from '@/components/loading';
 
 import { useLobbyActions } from './use-lobby-actions';
 import { useLobbyState } from './use-lobby-state';
@@ -64,6 +69,7 @@ export default function LobbyScreen() {
     setStatus,
     setLobbyError,
   );
+  const showLoading = useMinimumDuration(status === 'loading');
 
   if (!sessionId) {
     return (
@@ -82,14 +88,24 @@ export default function LobbyScreen() {
     <Screen>
       <ScrollView className="flex-1">
         <View className="flex-grow justify-center px-6 py-8">
-          {status === 'loading' && (
-            <View className="items-center gap-4">
-              <Text variant="display-md" color="primary">
-                LOADING GAME…
-              </Text>
-              <Text variant="body" color="secondary" className="text-center">
-                Fetching your session.
-              </Text>
+          {showLoading && (
+            <View className="gap-6">
+              <View className="items-center gap-3">
+                <Skeleton width={150} height={24} radius={4} />
+                <Skeleton width={230} height={42} radius={4} />
+                <SkeletonText
+                  lines={2}
+                  lastLineWidth="78%"
+                  className="w-full"
+                />
+              </View>
+              <Card>
+                <View className="gap-4">
+                  <Skeleton width={110} height={18} radius={4} />
+                  <Skeleton width="100%" height={72} radius={4} />
+                  <SkeletonText lines={2} lastLineWidth="62%" />
+                </View>
+              </Card>
             </View>
           )}
 

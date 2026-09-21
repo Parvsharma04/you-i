@@ -52,7 +52,7 @@ export const motion = {
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
-function useAccessibilityReduceMotion(): boolean {
+export function useAccessibilityReduceMotion(): boolean {
   const systemReduceMotion = useReducedMotion();
   const [reduceMotion, setReduceMotion] = useState(systemReduceMotion);
 

@@ -2,7 +2,7 @@ import { useCallback, useState } from 'react';
 import { ScrollView, TextInput, View } from 'react-native';
 import { useRouter } from 'expo-router';
 
-import { LoadingView } from '@/components/loading-view';
+import { GeneratingResult, useMinimumDuration } from '@/components/loading';
 import Animated, { useAnimatedProps } from 'react-native-reanimated';
 import {
   SCORE_RANK_THRESHOLDS,
@@ -112,6 +112,9 @@ export default function ResultScreen({
     share,
   } = useShareResult();
   const [playPending, setPlayPending] = useState(false);
+  const showResultLoading = useMinimumDuration(
+    status === 'loading' || status === 'generating',
+  );
 
   const sharePending =
     shareStatus === 'capturing' ||
@@ -144,13 +147,12 @@ export default function ResultScreen({
     }
   }, [playPending, record, router]);
 
-  if (status === 'loading') {
+  if (showResultLoading) {
     return (
       <Screen>
-        <LoadingView
-          title="LOADING RESULT…"
-          subtitle="Reading the compatibility data."
-        />
+        <ScrollView contentContainerClassName="flex-grow">
+          <GeneratingResult />
+        </ScrollView>
       </Screen>
     );
   }
@@ -187,13 +189,10 @@ export default function ResultScreen({
     );
   }
 
-  if (status === 'generating' || !result) {
+  if (!result) {
     return (
       <Screen>
-        <LoadingView
-          title="WRITING YOUR RESULT…"
-          subtitle="The AI is comparing your answers. This can take a few seconds."
-        />
+        <GeneratingResult />
       </Screen>
     );
   }

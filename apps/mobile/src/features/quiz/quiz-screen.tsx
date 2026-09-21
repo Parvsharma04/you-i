@@ -3,7 +3,7 @@ import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 
 import type { PlayerRole } from '@youandi/shared';
 
-import { LoadingView } from '@/components/loading-view';
+import { GeneratingQuestions } from '@/components/loading';
 import { Button } from '@/components/ui/button';
 import { Screen } from '@/components/ui/screen';
 import { Text } from '@/components/ui/text';
@@ -59,12 +59,7 @@ export function QuizScreen({ sessionId, playerId, role }: QuizScreenProps) {
         extraKeyboardSpace={16}
       >
         <View className="flex-grow px-6 py-8">
-          {isLoading && (
-            <LoadingView
-              title="LOADING QUESTIONS…"
-              subtitle="Getting this round ready."
-            />
-          )}
+          {isLoading && <GeneratingQuestions />}
 
           {!isLoading && error && (
             <ErrorView message={error.message} onRetry={handleRetry} />

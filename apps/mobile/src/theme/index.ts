@@ -3,6 +3,7 @@ export {
   FadeInStagger,
   MotionPressable,
   motion,
+  useAccessibilityReduceMotion,
   useCountUp,
   type CountUpOptions,
   type FadeInStaggerProps,
