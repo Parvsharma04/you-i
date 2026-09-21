@@ -124,7 +124,6 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     ],
     'expo-sharing',
     'expo-secure-store',
-    'react-native-keyboard-controller',
     [
       'expo-media-library',
       {

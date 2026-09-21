@@ -67,7 +67,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.two,
-    minHeight: 44,
+    minHeight: 48,
   },
   pressedHeading: {
     opacity: 0.7,

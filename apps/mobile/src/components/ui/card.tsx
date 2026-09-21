@@ -1,27 +1,36 @@
 import { View, type ViewProps } from 'react-native';
 
-import { cx } from '@/lib/cx';
-
-import { RetroShadowBox } from './retro-shadow-box';
+import { useTheme } from '@/theme';
 
 export type CardProps = ViewProps & {
   shadowSize?: 'sm' | 'md' | 'lg';
 };
 
-/** Native port of web's `.glass-card` (globals.css: bg-card, 3px border, shadow-retro, p-6). */
 export function Card({
-  shadowSize = 'md',
-  className,
+  style,
   children,
+  shadowSize: _shadowSize,
   ...props
 }: CardProps) {
+  const theme = useTheme();
   return (
-    <RetroShadowBox
-      size={shadowSize}
-      className={cx('bg-bg-card p-6', className)}
+    <View
       {...props}
+      style={[
+        {
+          backgroundColor: theme.card,
+          borderRadius: theme.radius.card,
+          padding: theme.spacing[22],
+          shadowColor: theme.ink,
+          shadowOffset: { width: 0, height: 8 },
+          shadowOpacity: 0.22,
+          shadowRadius: 12,
+          elevation: 3,
+        },
+        style,
+      ]}
     >
-      <View>{children}</View>
-    </RetroShadowBox>
+      {children}
+    </View>
   );
 }

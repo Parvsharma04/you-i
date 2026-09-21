@@ -1,14 +1,8 @@
 import { View, type ViewProps } from 'react-native';
 
-import { cx } from '@/lib/cx';
+import { useTheme } from '@/theme';
 
-const OFFSET_CLASS = {
-  sm: 'translate-x-[3px] translate-y-[3px]',
-  md: 'translate-x-[4px] translate-y-[4px]',
-  lg: 'translate-x-[6px] translate-y-[6px]',
-} as const;
-
-export type RetroShadowSize = keyof typeof OFFSET_CLASS;
+export type RetroShadowSize = 'sm' | 'md' | 'lg';
 
 /**
  * RN box-shadows are always blurred, so web's hard-edge "retro" shadow
@@ -20,19 +14,32 @@ export type RetroShadowSize = keyof typeof OFFSET_CLASS;
  */
 export function RetroShadowBox({
   size = 'md',
-  className,
   children,
   ...props
 }: ViewProps & { size?: RetroShadowSize }) {
+  const theme = useTheme();
+  const offset = size === 'sm' ? 3 : size === 'lg' ? 6 : 4;
   return (
-    <View className="relative">
+    <View style={{ position: 'relative' }}>
       <View
         pointerEvents="none"
-        className={cx('absolute inset-0 bg-border-color', OFFSET_CLASS[size])}
+        style={{
+          position: 'absolute',
+          inset: 0,
+          backgroundColor: theme.line,
+          transform: [{ translateX: offset }, { translateY: offset }],
+        }}
       />
       <View
-        className={cx('relative border-3 border-border-color', className)}
         {...props}
+        style={[
+          {
+            position: 'relative',
+            borderWidth: 1.5,
+            borderColor: theme.line,
+          },
+          props.style,
+        ]}
       >
         {children}
       </View>

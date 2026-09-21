@@ -1,62 +1,81 @@
 import { Text as RNText, type TextProps as RNTextProps } from 'react-native';
 
-import { cx } from '@/lib/cx';
+import { FONT_FAMILY } from '@/lib/fonts';
+import { useTheme } from '@/theme';
 
 export type TextVariant =
-  'display-xl' | 'display-lg' | 'display-md' | 'body' | 'body-sm' | 'body-xs';
+  | 'display-xl'
+  | 'display'
+  | 'title'
+  | 'body'
+  | 'label'
+  | 'mono'
+  | 'display-lg'
+  | 'display-md'
+  | 'body-sm'
+  | 'body-xs';
 export type TextColor = 'primary' | 'secondary' | 'muted' | 'accent' | 'white';
-
-const VARIANT_CLASSES: Record<TextVariant, string> = {
-  // h1/h2/h3 in globals.css `@layer base` (font-display = VT323).
-  'display-xl': 'font-display text-display-xl',
-  'display-lg': 'font-display text-display-lg',
-  'display-md': 'font-display text-display-md',
-  // Body copy (font-body = Space Mono 400).
-  body: 'font-body text-base',
-  'body-sm': 'font-body text-sm',
-  'body-xs': 'font-body text-xs',
-};
-
-const COLOR_CLASSES: Record<TextColor, string> = {
-  primary: 'text-text-primary',
-  secondary: 'text-text-secondary',
-  muted: 'text-text-muted',
-  accent: 'text-accent',
-  white: 'text-white',
-};
 
 export type TextProps = RNTextProps & {
   variant?: TextVariant;
   color?: TextColor;
-  /** Swaps in Space Mono 700 for body variants; display type has one weight (VT323). */
   bold?: boolean;
 };
 
-/**
- * Typographic-scale wrapper around RN's `Text` — screens should always
- * import this, never `Text` from `react-native` directly, so every string
- * in the app resolves to one of the six tokens above instead of ad-hoc
- * font sizes.
- */
+const sizes: Record<TextVariant, { fontSize: number; lineHeight: number }> = {
+  'display-xl': { fontSize: 52, lineHeight: 58 },
+  display: { fontSize: 34, lineHeight: 40 },
+  title: { fontSize: 24, lineHeight: 30 },
+  body: { fontSize: 16, lineHeight: 22 },
+  label: { fontSize: 14, lineHeight: 20 },
+  mono: { fontSize: 14, lineHeight: 20 },
+  'display-lg': { fontSize: 34, lineHeight: 40 },
+  'display-md': { fontSize: 24, lineHeight: 30 },
+  'body-sm': { fontSize: 14, lineHeight: 20 },
+  'body-xs': { fontSize: 12.5, lineHeight: 17 },
+};
+
 export function Text({
   variant = 'body',
   color = 'primary',
   bold = false,
-  className,
   style,
   ...props
 }: TextProps) {
-  const isDisplay = variant.startsWith('display');
+  const theme = useTheme();
+  const display = variant.startsWith('display') || variant === 'title';
+  const colorValue =
+    color === 'primary'
+      ? theme.ink
+      : color === 'secondary'
+        ? theme.ink2
+        : color === 'muted'
+          ? theme.ink3
+          : color === 'accent'
+            ? theme.accent
+            : theme.card;
+  const family = display
+    ? bold
+      ? FONT_FAMILY.display700
+      : FONT_FAMILY.display
+    : variant === 'mono'
+      ? 'monospace'
+      : bold
+        ? FONT_FAMILY.body700
+        : FONT_FAMILY.body;
+
   return (
     <RNText
-      className={cx(
-        VARIANT_CLASSES[variant],
-        COLOR_CLASSES[color],
-        bold && !isDisplay && 'font-body-bold',
-        className,
-      )}
-      style={style}
       {...props}
+      style={[
+        sizes[variant],
+        {
+          color: colorValue,
+          fontFamily: family,
+          letterSpacing: display ? -0.035 * sizes[variant].fontSize : undefined,
+        },
+        style,
+      ]}
     />
   );
 }

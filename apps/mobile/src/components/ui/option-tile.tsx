@@ -1,99 +1,65 @@
-import { useCallback, useEffect } from 'react';
 import {
-  Pressable,
-  View,
   type AccessibilityProps,
   type GestureResponderEvent,
+  type ViewStyle,
 } from 'react-native';
-import Animated, {
-  useAnimatedStyle,
-  useReducedMotion,
-  useSharedValue,
-  withTiming,
-} from 'react-native-reanimated';
 
-import { cx } from '@/lib/cx';
+import { MotionPressable } from '@/theme';
+import { useTheme } from '@/theme';
 
 import { Text } from './text';
 
-const OFFSET = 4; // matches `shadow-retro`
-
-const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
-
 export type OptionTileProps = AccessibilityProps & {
   label: string;
+  emoji?: string;
   selected?: boolean;
+  correct?: boolean;
   onPress?: (event: GestureResponderEvent) => void;
   disabled?: boolean;
+  style?: ViewStyle;
 };
 
-/**
- * Native port of web's `.option-card`/`.option-card.selected` (globals.css)
- * — the MCQ answer tiles on the quiz screen. Selected state permanently
- * pushes the tile to the shadow's offset and drops the shadow (mirrors
- * `.selected { translate-x-4 translate-y-4 shadow-none }`); an unselected
- * press nudges it partway there as momentary feedback, springing back on
- * release.
- */
 export function OptionTile({
   label,
+  emoji,
   selected = false,
+  correct = false,
   onPress,
   disabled = false,
+  style,
   accessibilityLabel,
   ...accessibilityProps
 }: OptionTileProps) {
-  const offset = useSharedValue(selected ? 1 : 0);
-  const reduceMotion = useReducedMotion();
-
-  useEffect(() => {
-    offset.value = withTiming(selected ? 1 : 0, {
-      duration: reduceMotion ? 0 : 150,
-    });
-  }, [offset, selected, reduceMotion]);
-
-  const animatedStyle = useAnimatedStyle(() => ({
-    transform: [
-      { translateX: offset.value * OFFSET },
-      { translateY: offset.value * OFFSET },
-    ],
-  }));
-
-  const handlePressIn = useCallback(() => {
-    if (disabled || selected || reduceMotion) return;
-    offset.value = withTiming(0.5, { duration: 80 });
-  }, [disabled, offset, selected, reduceMotion]);
-
-  const handlePressOut = useCallback(() => {
-    if (disabled || selected || reduceMotion) return;
-    offset.value = withTiming(0, { duration: 120 });
-  }, [disabled, offset, selected, reduceMotion]);
-
+  const theme = useTheme();
   return (
-    <View className="relative mb-3">
-      <View
-        pointerEvents="none"
-        className="absolute inset-0 translate-x-1 translate-y-1 bg-border-color"
-      />
-      <AnimatedPressable
-        accessibilityRole="button"
-        accessibilityState={{ disabled, selected }}
-        accessibilityLabel={accessibilityLabel ?? label}
-        disabled={disabled}
-        onPress={onPress}
-        onPressIn={handlePressIn}
-        onPressOut={handlePressOut}
-        style={animatedStyle}
-        className={cx(
-          'min-h-11 min-w-11 border-3 border-border-color p-4',
-          selected ? 'bg-accent' : 'bg-bg-card',
-        )}
-        {...accessibilityProps}
-      >
-        <Text variant="body" bold color={selected ? 'white' : 'primary'}>
-          {label}
-        </Text>
-      </AnimatedPressable>
-    </View>
+    <MotionPressable
+      {...accessibilityProps}
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel ?? label}
+      accessibilityState={{ disabled, selected }}
+      disabled={disabled}
+      onPress={onPress}
+      style={[
+        {
+          minHeight: 56,
+          minWidth: 48,
+          padding: 16,
+          borderRadius: theme.radius.tile,
+          borderWidth: correct ? 2 : 1.5,
+          borderColor: selected || correct ? theme.ink : theme.line,
+          backgroundColor: selected ? theme.ink : theme.card,
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: 12,
+          opacity: disabled ? 0.5 : 1,
+        },
+        style,
+      ]}
+    >
+      {emoji ? <Text variant="title">{emoji}</Text> : null}
+      <Text variant="body" bold color={selected ? 'white' : 'primary'}>
+        {label}
+      </Text>
+    </MotionPressable>
   );
 }

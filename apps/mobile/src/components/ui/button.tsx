@@ -1,11 +1,12 @@
 import {
+  ActivityIndicator,
   View,
   type AccessibilityProps,
   type GestureResponderEvent,
+  type ViewStyle,
 } from 'react-native';
 
-import { cx } from '@/lib/cx';
-import { MotionPressable } from '@/theme';
+import { MotionPressable, useTheme } from '@/theme';
 
 import { Text } from './text';
 
@@ -13,62 +14,71 @@ export type ButtonProps = AccessibilityProps & {
   title: string;
   onPress?: (event: GestureResponderEvent) => void;
   disabled?: boolean;
+  pending?: boolean;
+  loading?: boolean;
   variant?: 'primary' | 'secondary';
-  className?: string;
   fullWidth?: boolean;
+  style?: ViewStyle;
 };
 
-/**
- * Native port of web's `.btn-primary` (globals.css). Hover isn't a thing on
- * a touchscreen, so the hover/active/disabled trio collapses to
- * pressed/disabled: pressing slides the button the full shadow offset
- * (mirrors `shadow-retro` → `shadow-none` on `:active`), disabled swaps in
- * the web's `#ffb6c1` disabled fill and drops the press animation.
- * Minimum 44x44pt touch target via `min-h-11 min-w-11` (Tailwind's spacing
- * scale: 11 * 4px = 44px).
- */
 export function Button({
   title,
   onPress,
   disabled = false,
+  pending = false,
+  loading = false,
   variant = 'primary',
-  className,
   fullWidth = false,
+  style,
   accessibilityLabel,
   ...accessibilityProps
 }: ButtonProps) {
+  const theme = useTheme();
+  const isPending = pending || loading;
+  const primary = variant === 'primary';
   return (
-    <View className={cx('relative', fullWidth ? 'w-full' : 'self-start')}>
+    <MotionPressable
+      {...accessibilityProps}
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel ?? title}
+      accessibilityState={{ disabled: disabled || isPending, busy: isPending }}
+      disabled={disabled || isPending}
+      onPress={onPress}
+      style={[
+        {
+          minHeight: 56,
+          minWidth: 48,
+          width: fullWidth ? '100%' : undefined,
+          paddingHorizontal: 22,
+          borderRadius: 18,
+          borderWidth: primary ? 0 : 1.5,
+          borderColor: theme.ink,
+          backgroundColor: primary ? theme.ink : 'transparent',
+          alignItems: 'center',
+          justifyContent: 'center',
+          opacity: disabled ? 0.5 : 1,
+        },
+        style,
+      ]}
+    >
       <View
-        pointerEvents="none"
-        className="absolute inset-0 translate-x-1 translate-y-1 bg-border-color"
-      />
-      <MotionPressable
-        accessibilityRole="button"
-        accessibilityState={{ disabled }}
-        accessibilityLabel={accessibilityLabel ?? title}
-        disabled={disabled}
-        onPress={onPress}
-        className={cx(
-          'min-h-11 min-w-11 flex-row items-center justify-center border-3 border-border-color px-6 py-3',
-          disabled
-            ? 'bg-[#ffb6c1]'
-            : variant === 'secondary'
-              ? 'bg-bg-secondary'
-              : 'bg-accent',
-          fullWidth && 'w-full',
-          className,
-        )}
-        {...accessibilityProps}
+        style={{ minWidth: 96, alignItems: 'center', justifyContent: 'center' }}
       >
         <Text
-          variant="display-lg"
-          color={variant === 'secondary' ? 'primary' : 'white'}
-          className="uppercase tracking-[2px]"
+          color={primary ? 'white' : 'primary'}
+          variant="label"
+          bold
+          style={{ opacity: isPending ? 0 : 1 }}
         >
           {title}
         </Text>
-      </MotionPressable>
-    </View>
+        {isPending ? (
+          <ActivityIndicator
+            color={primary ? theme.card : theme.ink}
+            style={{ position: 'absolute' }}
+          />
+        ) : null}
+      </View>
+    </MotionPressable>
   );
 }
