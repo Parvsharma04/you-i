@@ -62,11 +62,11 @@ export function useQuiz(sessionId: string, playerId: string) {
 
         setQuestions(state.questions);
         setError(null);
+        setIsLoading(state.questions.length === 0);
       } catch (err) {
         if (!mounted) return;
         setError(normalizeQuizError(err));
-      } finally {
-        if (mounted) setIsLoading(false);
+        setIsLoading(false);
       }
     }
 
@@ -75,6 +75,35 @@ export function useQuiz(sessionId: string, playerId: string) {
       mounted = false;
     };
   }, [sessionId, playerId]);
+
+  // Question generation starts when the host creates the lobby. If the
+  // players arrive before it finishes, keep the intentional wait state until
+  // the authoritative session state contains the generated (or fallback)
+  // questions.
+  useEffect(() => {
+    if (!gameState) return;
+    setQuestions(gameState.questions);
+    setIsLoading(gameState.questions.length === 0);
+    if (gameState.questions.length > 0) {
+      setError(null);
+    }
+  }, [gameState]);
+
+  useEffect(() => {
+    if (!isLoading) return;
+
+    const tick = async () => {
+      try {
+        await refresh();
+      } catch {
+        // Keep the generation state visible; the next poll or reconnect retries.
+      }
+    };
+
+    void tick();
+    const intervalId = setInterval(() => void tick(), POLL_INTERVAL_MS);
+    return () => clearInterval(intervalId);
+  }, [isLoading, refresh]);
 
   // Flush queued answers in order whenever the network/socket recovers.
   const flushQueue = useCallback(async () => {
@@ -291,9 +320,9 @@ export function useQuiz(sessionId: string, playerId: string) {
     try {
       const state = await getSessionState(sessionId, playerId);
       setQuestions(state.questions);
+      setIsLoading(state.questions.length === 0);
     } catch (err) {
       setError(normalizeQuizError(err));
-    } finally {
       setIsLoading(false);
     }
   }, [sessionId, playerId]);

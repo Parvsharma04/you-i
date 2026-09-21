@@ -79,6 +79,8 @@ export function useLobbyState(sessionId: string | undefined) {
         setStatus(stored.role === 'player1' ? 'host' : 'waiting');
         if (stored.role === 'player1') {
           await loadSessionDetails();
+        } else {
+          navigateToQuiz();
         }
         return;
       }
@@ -91,7 +93,7 @@ export function useLobbyState(sessionId: string | undefined) {
     return () => {
       mounted = false;
     };
-  }, [loadSessionDetails, sessionId, setThemeCategory]);
+  }, [loadSessionDetails, navigateToQuiz, sessionId, setThemeCategory]);
 
   useEffect(() => {
     if (!codeExpiresAt) return;

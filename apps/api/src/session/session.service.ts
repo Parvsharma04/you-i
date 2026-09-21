@@ -31,7 +31,7 @@ import {
 } from './join-rate-limit.service';
 import { JoinSessionException } from './join-session.exception';
 
-const CODE_TTL_MS = 10 * 60 * 1000;
+const CODE_TTL_MS = 30 * 60 * 1000;
 const RECENT_SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
 function isLegacySessionIdJoinEnabled(): boolean {
@@ -75,17 +75,25 @@ export class SessionService {
 
     const code = await this.codeGenerator.generateAndAssign(session.id);
 
-    const questions = await this.generateQuestions(
+    // Start generation while the host is sharing the lobby. Most games will
+    // have questions ready before the second player joins; the client polls
+    // the authoritative state when generation is still in flight.
+    void this.generateQuestions(
       session.id,
       dto.category,
       dto.questionCount,
-    );
+    ).catch((error: unknown) => {
+      console.error(
+        `[session] question generation failed: ${session.id}`,
+        error,
+      );
+    });
 
     return {
       sessionId: session.id,
       playerId: player1Id,
       code,
-      questionIds: questions.map((q) => q.id),
+      questionIds: [],
     };
   }
 

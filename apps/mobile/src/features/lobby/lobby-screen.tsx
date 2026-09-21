@@ -1,11 +1,22 @@
 import { Pressable, ScrollView, View } from 'react-native';
+import { useEffect } from 'react';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import QRCode from 'react-native-qrcode-svg';
+import Animated, {
+  cancelAnimation,
+  useAnimatedStyle,
+  useSharedValue,
+  withRepeat,
+  withTiming,
+} from 'react-native-reanimated';
 import { type Category } from '@youandi/shared';
 
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Screen } from '@/components/ui/screen';
 import { Text } from '@/components/ui/text';
+import { env } from '@/lib/env';
+import { useAccessibilityReduceMotion, useTheme } from '@/theme';
 import {
   Skeleton,
   SkeletonText,
@@ -30,7 +41,32 @@ function formatCountdown(ms: number): string {
   return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
 }
 
+function PresenceDot() {
+  const reduceMotion = useAccessibilityReduceMotion();
+  const pulse = useSharedValue(1);
+
+  useEffect(() => {
+    cancelAnimation(pulse);
+    pulse.value = reduceMotion
+      ? 1
+      : withRepeat(withTiming(1.18, { duration: 800 }), -1, true);
+  }, [pulse, reduceMotion]);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    opacity: 0.65 + (pulse.value - 1) * 2,
+    transform: [{ scale: pulse.value }],
+  }));
+
+  return (
+    <Animated.View
+      className="h-3 w-3 rounded-full bg-accent"
+      style={animatedStyle}
+    />
+  );
+}
+
 export default function LobbyScreen() {
+  const theme = useTheme();
   const router = useRouter();
   const rawParams = useLocalSearchParams<{ sessionId: string }>();
   const sessionId = Array.isArray(rawParams.sessionId)
@@ -177,10 +213,15 @@ export default function LobbyScreen() {
                     <Pressable onPress={handleCopyCode}>
                       <View className="border-3 border-border-color bg-bg-secondary p-4 active:opacity-70">
                         <Text
-                          variant="display-lg"
+                          variant="mono"
                           color="primary"
                           selectable
                           className="text-center tracking-[4px]"
+                          style={{
+                            fontSize: 46,
+                            lineHeight: 54,
+                            fontFamily: 'monospace',
+                          }}
                         >
                           {roomCode ?? '…'}
                         </Text>
@@ -189,7 +230,7 @@ export default function LobbyScreen() {
                     <Text
                       variant="body-sm"
                       color="secondary"
-                      className="text-center"
+                      className="h-5 text-center"
                     >
                       {copied
                         ? 'COPIED!'
@@ -224,9 +265,39 @@ export default function LobbyScreen() {
                 </Card>
               )}
 
+              {status === 'host' && roomCode && (
+                <Card className="mb-8 items-center gap-4">
+                  <View
+                    accessible
+                    accessibilityLabel="QR code for joining this room"
+                  >
+                    <QRCode
+                      value={`${env.webUrl}/j/${roomCode}`}
+                      size={168}
+                      color={theme.ink}
+                      backgroundColor={theme.card}
+                    />
+                  </View>
+                  <Text
+                    variant="body-sm"
+                    color="secondary"
+                    className="text-center"
+                  >
+                    Scan this to join — you&apos;ll both be in the same room.
+                  </Text>
+                </Card>
+              )}
+
               <View className="items-center gap-3">
-                <View className="h-3 w-3 rounded-full bg-accent" />
-                <Text variant="body-sm" color="muted">
+                <View className="flex-row items-center gap-2">
+                  <PresenceDot />
+                  <Text variant="body-sm" color="primary" bold>
+                    {status === 'host'
+                      ? 'WAITING FOR THEM TO JOIN'
+                      : 'PLAYER 2 READY'}
+                  </Text>
+                </View>
+                <Text variant="body-xs" color="muted">
                   {connectionLabel}
                 </Text>
               </View>
