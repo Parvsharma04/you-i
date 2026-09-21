@@ -1,53 +1,91 @@
+import { useEffect, type ReactNode } from 'react';
 import { Keyboard, View } from 'react-native';
+import Animated, {
+  cancelAnimation,
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+} from 'react-native-reanimated';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 
-import type { PlayerRole } from '@youandi/shared';
-
 import { GeneratingQuestions } from '@/components/loading';
-import { Button } from '@/components/ui/button';
+import { ProgressPair } from '@/components/ui/progress-pair';
 import { Screen } from '@/components/ui/screen';
 import { Text } from '@/components/ui/text';
+import { useAccessibilityReduceMotion, motion } from '@/theme';
 
 import { ErrorView } from './components/error-view';
-import { ProgressBar } from './components/progress-bar';
+import { FinishedView } from './components/finished-view';
 import { QuestionCard } from './components/question-card';
-import { WaitingView } from './components/waiting-view';
 import { useQuiz } from './use-quiz';
 
 type QuizScreenProps = {
   sessionId: string;
   playerId: string;
-  role: PlayerRole;
+  partnerName?: string;
 };
 
-export function QuizScreen({ sessionId, playerId, role }: QuizScreenProps) {
+function QuestionTransition({
+  questionKey,
+  children,
+}: {
+  questionKey: number;
+  children: ReactNode;
+}) {
+  const reduceMotion = useAccessibilityReduceMotion();
+  const translateX = useSharedValue(0);
+
+  useEffect(() => {
+    cancelAnimation(translateX);
+    if (reduceMotion) {
+      translateX.value = 0;
+      return;
+    }
+    translateX.value = 40;
+    translateX.value = withSpring(0, motion.spring.standard);
+  }, [questionKey, reduceMotion, translateX]);
+
+  const style = useAnimatedStyle(() => ({
+    transform: [{ translateX: translateX.value }],
+  }));
+
+  return (
+    <Animated.View key={questionKey} style={style}>
+      {children}
+    </Animated.View>
+  );
+}
+
+export function QuizScreen({
+  sessionId,
+  playerId,
+  partnerName = 'Your partner',
+}: QuizScreenProps) {
   const {
     isLoading,
     error,
     currentQuestion,
-    currentIndex,
     totalQuestions,
     youProgress,
     partnerProgress,
     localComplete,
     pendingCount,
-    socketStatus,
     selectedOption,
     textAnswer,
-    isSubmitting,
+    rollbackMessage,
+    ownAnswers,
+    questions,
     handleSelectOption,
     handleTextChange,
     submitCurrent,
     handleRetry,
   } = useQuiz(sessionId, playerId);
 
-  const canSubmit =
-    !isSubmitting &&
-    (currentQuestion?.type === 'mcq'
-      ? !!selectedOption
-      : textAnswer.trim().length > 0);
-
-  const submitLabel = currentIndex >= totalQuestions - 1 ? 'FINISH' : 'NEXT ->';
+  const partnerQuestion = Math.min(partnerProgress + 1, totalQuestions);
+  const statusCopy =
+    partnerProgress >= totalQuestions
+      ? `${partnerName} is done`
+      : `${partnerName} is on question ${partnerQuestion}`;
 
   return (
     <Screen>
@@ -58,76 +96,58 @@ export function QuizScreen({ sessionId, playerId, role }: QuizScreenProps) {
         onScrollBeginDrag={Keyboard.dismiss}
         extraKeyboardSpace={16}
       >
-        <View className="flex-grow px-6 py-8">
-          {isLoading && <GeneratingQuestions />}
+        {isLoading && <GeneratingQuestions />}
 
-          {!isLoading && error && (
-            <ErrorView message={error.message} onRetry={handleRetry} />
-          )}
+        {!isLoading && error && (
+          <ErrorView message={error.message} onRetry={handleRetry} />
+        )}
 
-          {!isLoading && !error && localComplete && (
-            <WaitingView
-              partnerProgress={partnerProgress}
-              total={totalQuestions}
-              pendingCount={pendingCount}
-              socketStatus={socketStatus}
-            />
-          )}
+        {!isLoading && !error && localComplete && (
+          <FinishedView
+            questions={questions}
+            answers={ownAnswers}
+            partnerProgress={partnerProgress}
+            total={totalQuestions}
+            partnerName={partnerName}
+          />
+        )}
 
-          {!isLoading && !error && !localComplete && currentQuestion && (
-            <View className="flex-1 gap-6">
-              <View className="flex-row items-center justify-between">
-                <Text variant="body-xs" bold color="muted">
-                  STAGE {currentIndex + 1}/{totalQuestions}
-                </Text>
-                <View className="border-2 border-border-color bg-bg-card px-3 py-1">
-                  <Text variant="body-xs" bold color="secondary">
-                    {role === 'player1' ? 'PLAYER 1' : 'PLAYER 2'}
-                  </Text>
-                </View>
-              </View>
+        {!isLoading && !error && !localComplete && currentQuestion && (
+          <View className="flex-1 gap-6 px-6 py-8">
+            <View className="gap-3">
+              <ProgressPair
+                yours={youProgress}
+                theirs={partnerProgress}
+                total={totalQuestions}
+              />
+              <Text variant="body-xs" color="muted">
+                {statusCopy}
+              </Text>
+            </View>
 
-              <View className="gap-2">
-                <ProgressBar
-                  label="YOU"
-                  progress={youProgress}
-                  total={totalQuestions}
-                  variant="you"
-                />
-                <ProgressBar
-                  label="P2"
-                  progress={partnerProgress}
-                  total={totalQuestions}
-                  variant="partner"
-                />
-              </View>
-
+            <QuestionTransition questionKey={currentQuestion.id}>
               <QuestionCard
                 question={currentQuestion}
                 selectedOption={selectedOption}
                 textAnswer={textAnswer}
-                disabled={isSubmitting}
                 onSelectOption={handleSelectOption}
                 onChangeText={handleTextChange}
+                onSubmit={submitCurrent}
               />
+            </QuestionTransition>
 
-              {pendingCount > 0 && (
-                <Text variant="body-sm" color="accent" className="text-center">
-                  {pendingCount} answer{pendingCount === 1 ? '' : 's'} queued
-                </Text>
-              )}
-
-              <View className="mt-auto pt-4">
-                <Button
-                  title={isSubmitting ? 'SAVING…' : submitLabel}
-                  onPress={submitCurrent}
-                  disabled={!canSubmit}
-                  fullWidth
-                />
-              </View>
-            </View>
-          )}
-        </View>
+            {rollbackMessage && (
+              <Text variant="body-sm" color="accent" className="text-center">
+                {rollbackMessage}
+              </Text>
+            )}
+            {pendingCount > 0 && (
+              <Text variant="body-xs" color="muted" className="text-center">
+                Answers will sync when you&apos;re back online.
+              </Text>
+            )}
+          </View>
+        )}
       </KeyboardAwareScrollView>
     </Screen>
   );

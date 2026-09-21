@@ -2,7 +2,11 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
-import type { SessionStateResponse } from '@youandi/shared';
+import type {
+  Answer,
+  AnswerSubmittedPayload,
+  SessionStateResponse,
+} from '@youandi/shared';
 
 import { useGameSocket } from '@/hooks/useGameSocket';
 import {
@@ -12,6 +16,7 @@ import {
 import {
   NetworkError,
   TimeoutError,
+  getAnswers,
   getSessionState,
   submitAnswer,
 } from '@/lib/api';
@@ -22,194 +27,129 @@ export const MAX_TEXT_LENGTH = 500;
 const POLL_INTERVAL_MS = 5000;
 const FLUSH_INTERVAL_MS = 3000;
 
+type QueuedAnswer = { questionId: number; answer: string };
+
 export function useQuiz(sessionId: string, playerId: string) {
   const router = useRouter();
   const { leavingIntentionallyRef, markLeaving } = useLeavingIntentionally();
-  const {
-    state: gameState,
-    status: socketStatus,
-    refresh,
-    emitAnswer,
-    emitComplete,
-  } = useGameSocket(sessionId, playerId);
-
+  const [gameState, setGameState] = useState<SessionStateResponse | null>(null);
+  const [socketStatus, setSocketStatus] = useState<string>('offline');
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<QuizError | null>(null);
   const [questions, setQuestions] = useState<SessionStateResponse['questions']>(
     [],
   );
-  const [pendingIds, setPendingIds] = useState<Set<number>>(new Set());
   const [submittedIds, setSubmittedIds] = useState<Set<number>>(new Set());
+  const [partnerSubmittedIds, setPartnerSubmittedIds] = useState<Set<number>>(
+    new Set(),
+  );
+  const [answers, setAnswers] = useState<Record<number, string>>({});
   const [selectedOption, setSelectedOption] = useState<string | null>(null);
   const [textAnswer, setTextAnswer] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isPosting, setIsPosting] = useState(false);
+  const [rollbackMessage, setRollbackMessage] = useState<string | null>(null);
+  const [pendingCount, setPendingCount] = useState(0);
 
+  const queueRef = useRef<QueuedAnswer[]>([]);
+  const flushingRef = useRef(false);
   const navigatingRef = useRef(false);
   const emittedCompleteRef = useRef(false);
-  const flushingRef = useRef(false);
-  const offlineQueueRef = useRef<Array<{ questionId: number; answer: string }>>(
-    [],
-  );
 
-  // Load the authoritative state on mount.
+  const socket = useGameSocket(sessionId, playerId, {
+    onAnswerSubmitted: (payload: AnswerSubmittedPayload) => {
+      if (payload.playerId !== playerId) {
+        setPartnerSubmittedIds((current) => {
+          const next = new Set(current);
+          next.add(payload.questionId);
+          return next;
+        });
+      }
+    },
+  });
+
+  const applyState = useCallback((state: SessionStateResponse) => {
+    setGameState(state);
+    setQuestions(state.questions);
+    setSubmittedIds((current) => {
+      const next = new Set(current);
+      state.you.answeredQuestionIds.forEach((id) => next.add(id));
+      return next;
+    });
+    setPartnerSubmittedIds((current) => {
+      const next = new Set(current);
+      state.partner.answeredQuestionIds.forEach((id) => next.add(id));
+      return next;
+    });
+    setIsLoading(state.questions.length === 0);
+    setError(null);
+  }, []);
+
+  useEffect(() => {
+    setSocketStatus(socket.status);
+  }, [socket.status]);
+
   useEffect(() => {
     let mounted = true;
-
-    async function bootstrap() {
-      try {
-        const state = await getSessionState(sessionId, playerId);
+    getSessionState(sessionId, playerId)
+      .then(async (state) => {
         if (!mounted) return;
-
-        setQuestions(state.questions);
-        setError(null);
-        setIsLoading(state.questions.length === 0);
-      } catch (err) {
+        applyState(state);
+        try {
+          const storedAnswers = await getAnswers(sessionId);
+          if (!mounted) return;
+          setAnswers(
+            Object.fromEntries(
+              storedAnswers
+                .filter((answer) => answer.playerId === playerId)
+                .map((answer) => [answer.questionId, answer.answer]),
+            ),
+          );
+        } catch {
+          // The question state remains usable; answers are rehydrated on finish.
+        }
+      })
+      .catch((err: unknown) => {
         if (!mounted) return;
         setError(normalizeQuizError(err));
         setIsLoading(false);
-      }
-    }
-
-    bootstrap();
+      });
     return () => {
       mounted = false;
     };
-  }, [sessionId, playerId]);
+  }, [applyState, playerId, sessionId]);
 
-  // Question generation starts when the host creates the lobby. If the
-  // players arrive before it finishes, keep the intentional wait state until
-  // the authoritative session state contains the generated (or fallback)
-  // questions.
   useEffect(() => {
-    if (!gameState) return;
-    setQuestions(gameState.questions);
-    setIsLoading(gameState.questions.length === 0);
-    if (gameState.questions.length > 0) {
-      setError(null);
-    }
-  }, [gameState]);
+    if (socket.state?.session.id === sessionId) applyState(socket.state);
+  }, [applyState, sessionId, socket.state]);
 
+  const refresh = socket.refresh;
   useEffect(() => {
     if (!isLoading) return;
-
-    const tick = async () => {
-      try {
-        await refresh();
-      } catch {
-        // Keep the generation state visible; the next poll or reconnect retries.
-      }
-    };
-
-    void tick();
-    const intervalId = setInterval(() => void tick(), POLL_INTERVAL_MS);
-    return () => clearInterval(intervalId);
+    const id = setInterval(() => void refresh(), POLL_INTERVAL_MS);
+    void refresh();
+    return () => clearInterval(id);
   }, [isLoading, refresh]);
 
-  // Flush queued answers in order whenever the network/socket recovers.
-  const flushQueue = useCallback(async () => {
-    if (flushingRef.current || offlineQueueRef.current.length === 0) return;
-    flushingRef.current = true;
-
-    try {
-      const queue = offlineQueueRef.current;
-
-      for (let i = 0; i < queue.length;) {
-        const item = queue[i];
-        try {
-          await submitAnswer(
-            { sessionId, questionId: item.questionId, answer: item.answer },
-            playerId,
-          );
-
-          const idx = questions.findIndex((q) => q.id === item.questionId);
-          emitAnswer(item.questionId, idx >= 0 ? idx : 0);
-
-          queue.splice(i, 1);
-          setPendingIds((prev) => {
-            const next = new Set(prev);
-            next.delete(item.questionId);
-            return next;
-          });
-          setSubmittedIds((prev) => new Set(prev).add(item.questionId));
-        } catch (err) {
-          if (err instanceof NetworkError || err instanceof TimeoutError) {
-            break;
-          }
-          // Server rejected this answer; drop it so it doesn't block the queue.
-          queue.splice(i, 1);
-          setPendingIds((prev) => {
-            const next = new Set(prev);
-            next.delete(item.questionId);
-            return next;
-          });
-        }
-      }
-
-      await refresh();
-    } finally {
-      flushingRef.current = false;
-    }
-  }, [sessionId, playerId, questions, emitAnswer, refresh]);
-
-  useEffect(() => {
-    if (socketStatus === 'connected' && pendingIds.size > 0) {
-      void flushQueue();
-    }
-  }, [socketStatus, pendingIds.size, flushQueue]);
-
-  useEffect(() => {
-    if (pendingIds.size === 0) return;
-    const id = setInterval(() => void flushQueue(), FLUSH_INTERVAL_MS);
-    return () => clearInterval(id);
-  }, [pendingIds.size, flushQueue]);
-
-  // Prune optimistic submitted ids once the server state confirms them.
-  useEffect(() => {
-    if (!gameState) return;
-    setSubmittedIds((prev) => {
-      const next = new Set(prev);
-      for (const id of gameState.you.answeredQuestionIds) {
-        next.delete(id);
-      }
-      return next;
-    });
-  }, [gameState, gameState?.you.answeredQuestionIds]);
-
-  const answeredIds = useMemo(
-    () =>
-      new Set([
-        ...(gameState?.you.answeredQuestionIds ?? []),
-        ...pendingIds,
-        ...submittedIds,
-      ]),
-    [gameState, pendingIds, submittedIds],
-  );
-
+  const answeredIds = useMemo(() => new Set(submittedIds), [submittedIds]);
   const currentIndex = useMemo(
-    () => questions.findIndex((q) => !answeredIds.has(q.id)),
-    [questions, answeredIds],
+    () => questions.findIndex((question) => !answeredIds.has(question.id)),
+    [answeredIds, questions],
   );
-
   const currentQuestion = currentIndex >= 0 ? questions[currentIndex] : null;
-
   const totalQuestions = questions.length;
-  const youProgress = answeredIds.size;
-  const partnerProgress = gameState?.partner.answeredQuestionIds.length ?? 0;
-  const localComplete =
-    totalQuestions > 0 && answeredIds.size >= totalQuestions;
-  const confirmedComplete = gameState
-    ? gameState.you.answeredQuestionIds.length >= totalQuestions
-    : false;
+  const localComplete = totalQuestions > 0 && currentIndex < 0;
+  const partnerProgress = partnerSubmittedIds.size;
+  const confirmedComplete =
+    gameState?.you.answeredQuestionIds.length === totalQuestions &&
+    totalQuestions > 0;
 
-  // Tell the server (and partner) once our answers are persisted.
   useEffect(() => {
     if (confirmedComplete && !emittedCompleteRef.current) {
       emittedCompleteRef.current = true;
-      emitComplete();
+      socket.emitComplete();
     }
-  }, [confirmedComplete, emitComplete]);
+  }, [confirmedComplete, socket]);
 
-  // Both players finished: go to results.
   useEffect(() => {
     if (
       confirmedComplete &&
@@ -223,133 +163,183 @@ export function useQuiz(sessionId: string, playerId: string) {
   }, [
     confirmedComplete,
     gameState?.partner.complete,
+    markLeaving,
     router,
     sessionId,
-    markLeaving,
   ]);
 
-  // Polling fallback for the waiting state or when the socket is offline.
-  useEffect(() => {
-    if (!localComplete && socketStatus !== 'offline') return;
+  const postAnswer = useCallback(
+    async (item: QueuedAnswer, index: number) => {
+      try {
+        await submitAnswer(
+          { sessionId, questionId: item.questionId, answer: item.answer },
+          playerId,
+        );
+        socket.emitAnswer(item.questionId, index);
+        queueRef.current = queueRef.current.filter(
+          (queued) => queued.questionId !== item.questionId,
+        );
+        setPendingCount(queueRef.current.length);
+        setRollbackMessage(null);
+      } catch (err) {
+        if (err instanceof NetworkError || err instanceof TimeoutError) {
+          if (
+            !queueRef.current.some(
+              (queued) => queued.questionId === item.questionId,
+            )
+          ) {
+            queueRef.current.push(item);
+            setPendingCount(queueRef.current.length);
+          }
+          return;
+        }
 
-    const tick = async () => {
+        setSubmittedIds((current) => {
+          const next = new Set(current);
+          next.delete(item.questionId);
+          return next;
+        });
+        setAnswers((current) => {
+          const next = { ...current };
+          delete next[item.questionId];
+          return next;
+        });
+        setRollbackMessage('That answer could not be saved. Try again.');
+      }
       try {
         await refresh();
       } catch {
-        // Ignore; the next poll will retry.
+        // The answer is already persisted; the next reconnect rehydrates it.
       }
-    };
+    },
+    [playerId, refresh, sessionId, socket],
+  );
 
-    tick();
-    const id = setInterval(tick, POLL_INTERVAL_MS);
-    return () => clearInterval(id);
-  }, [localComplete, socketStatus, refresh]);
-
-  const handleSelectOption = useCallback((option: string) => {
-    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setSelectedOption((prev) => (prev === option ? null : option));
-  }, []);
-
-  const handleTextChange = useCallback((value: string) => {
-    if (value.length <= MAX_TEXT_LENGTH) {
-      setTextAnswer(value);
-    }
-  }, []);
-
-  const submitCurrent = useCallback(async () => {
-    if (!currentQuestion || isSubmitting) return;
-
-    const answer =
-      currentQuestion.type === 'mcq' ? selectedOption : textAnswer.trim();
-    if (!answer) return;
-
-    setIsSubmitting(true);
+  const flushQueue = useCallback(async () => {
+    if (flushingRef.current || queueRef.current.length === 0) return;
+    flushingRef.current = true;
     try {
-      await submitAnswer(
-        { sessionId, questionId: currentQuestion.id, answer },
-        playerId,
-      );
+      while (queueRef.current.length > 0) {
+        const item = queueRef.current[0];
+        const index = questions.findIndex(
+          (question) => question.id === item.questionId,
+        );
+        try {
+          await submitAnswer(
+            { sessionId, questionId: item.questionId, answer: item.answer },
+            playerId,
+          );
+          socket.emitAnswer(item.questionId, index);
+          queueRef.current.shift();
+          setPendingCount(queueRef.current.length);
+        } catch (err) {
+          if (err instanceof NetworkError || err instanceof TimeoutError) break;
+          queueRef.current.shift();
+          setPendingCount(queueRef.current.length);
+          setSubmittedIds((current) => {
+            const next = new Set(current);
+            next.delete(item.questionId);
+            return next;
+          });
+          setRollbackMessage(
+            'An offline answer could not be saved. Try again.',
+          );
+        }
+      }
+      await refresh();
+    } finally {
+      flushingRef.current = false;
+    }
+  }, [playerId, questions, refresh, sessionId, socket]);
 
-      emitAnswer(currentQuestion.id, currentIndex);
-      setPendingIds((prev) => {
-        const next = new Set(prev);
-        next.delete(currentQuestion.id);
-        return next;
-      });
-      setSubmittedIds((prev) => new Set(prev).add(currentQuestion.id));
+  useEffect(() => {
+    if (socket.status === 'connected') void flushQueue();
+  }, [flushQueue, socket.status]);
+
+  useEffect(() => {
+    if (queueRef.current.length === 0) return;
+    const id = setInterval(() => void flushQueue(), FLUSH_INTERVAL_MS);
+    return () => clearInterval(id);
+  }, [flushQueue, submittedIds]);
+
+  const commitAnswer = useCallback(
+    (answer: string) => {
+      if (!currentQuestion || !answer) return;
+      setIsPosting(true);
+      setRollbackMessage(null);
+      setAnswers((current) => ({ ...current, [currentQuestion.id]: answer }));
+      setSubmittedIds((current) => new Set(current).add(currentQuestion.id));
       setSelectedOption(null);
       setTextAnswer('');
-    } catch (err) {
-      if (err instanceof NetworkError || err instanceof TimeoutError) {
-        offlineQueueRef.current.push({
-          questionId: currentQuestion.id,
-          answer,
-        });
-        setPendingIds((prev) => new Set(prev).add(currentQuestion.id));
-        setSelectedOption(null);
-        setTextAnswer('');
-      } else {
-        setError(normalizeQuizError(err));
-      }
-    } finally {
-      setIsSubmitting(false);
-    }
+      void postAnswer(
+        { questionId: currentQuestion.id, answer },
+        currentIndex,
+      ).finally(() => setIsPosting(false));
+    },
+    [currentIndex, currentQuestion, postAnswer],
+  );
 
-    // Rehydrate outside the submit try/catch so a refresh failure doesn't
-    // re-queue an answer that already reached the server.
-    try {
-      await refresh();
-    } catch {
-      // Ignore; the next reconnect/poll will catch up.
-    }
-  }, [
-    currentQuestion,
-    isSubmitting,
-    selectedOption,
-    textAnswer,
-    sessionId,
-    playerId,
-    currentIndex,
-    emitAnswer,
-    refresh,
-  ]);
+  const handleSelectOption = useCallback(
+    (option: string) => {
+      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      setSelectedOption(option);
+      commitAnswer(option);
+    },
+    [commitAnswer],
+  );
+
+  const handleTextChange = useCallback((value: string) => {
+    if (value.length <= MAX_TEXT_LENGTH) setTextAnswer(value);
+  }, []);
+
+  const submitCurrent = useCallback(() => {
+    commitAnswer(textAnswer.trim());
+  }, [commitAnswer, textAnswer]);
 
   const handleRetry = useCallback(async () => {
     setIsLoading(true);
     setError(null);
     try {
-      const state = await getSessionState(sessionId, playerId);
-      setQuestions(state.questions);
-      setIsLoading(state.questions.length === 0);
+      applyState(await getSessionState(sessionId, playerId));
     } catch (err) {
       setError(normalizeQuizError(err));
       setIsLoading(false);
     }
-  }, [sessionId, playerId]);
+  }, [applyState, playerId, sessionId]);
 
-  // Hardware back / gesture back must confirm instead of abandoning the game.
-  // We use Expo Router's `useNavigation` + `beforeRemove` rather than
-  // `BackHandler` directly.
   useInterceptBack(
     useCallback(
       ({ preventDefault }) => {
         if (leavingIntentionallyRef.current) return;
         preventDefault();
         Alert.alert(
-          'Leave game?',
-          'Your partner is waiting on the other side.',
+          'Leave quiz?',
+          'Someone is waiting on the other side of this session.',
           [
             { text: 'STAY', style: 'cancel' },
             {
               text: 'LEAVE',
               style: 'destructive',
-              onPress: () => router.replace('/'),
+              onPress: () => {
+                markLeaving();
+                router.replace('/');
+              },
             },
           ],
         );
       },
-      [leavingIntentionallyRef, router],
+      [leavingIntentionallyRef, markLeaving, router],
     ),
+  );
+
+  const ownAnswers: Answer[] = Object.entries(answers).map(
+    ([questionId, answer], index) => ({
+      id: index,
+      sessionId,
+      questionId: Number(questionId),
+      playerId,
+      answer,
+    }),
   );
 
   return {
@@ -358,14 +348,17 @@ export function useQuiz(sessionId: string, playerId: string) {
     currentQuestion,
     currentIndex,
     totalQuestions,
-    youProgress,
+    youProgress: answeredIds.size,
     partnerProgress,
     localComplete,
-    pendingCount: pendingIds.size,
+    pendingCount,
     socketStatus,
     selectedOption,
     textAnswer,
-    isSubmitting,
+    isSubmitting: isPosting,
+    rollbackMessage,
+    ownAnswers,
+    questions,
     handleSelectOption,
     handleTextChange,
     submitCurrent,

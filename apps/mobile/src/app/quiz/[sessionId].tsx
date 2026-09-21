@@ -59,7 +59,11 @@ function QuizRouteInner() {
     <QuizScreen
       sessionId={sessionId}
       playerId={record.playerId}
-      role={record.role}
+      partnerName={
+        record.role === 'player1'
+          ? (record.player2Name ?? 'Your partner')
+          : (record.player1Name ?? 'Your partner')
+      }
     />
   );
 }
