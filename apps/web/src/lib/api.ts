@@ -7,12 +7,14 @@ import {
   answerCountResponseSchema,
   resultStatusResponseSchema,
   sessionStateResponseSchema,
+  mySessionsResponseSchema,
   PLAYER_ID_HEADER,
   DEVICE_ID_HEADER,
   type CreateSessionResponse,
   type JoinSessionResponse,
   type SessionResponse,
   type SessionStateResponse,
+  type MySessionsResponse,
   type Question,
   type Answer,
   type AnswerCountResponse,
@@ -100,6 +102,7 @@ export type {
   JoinSessionResponse,
   SessionResponse,
   SessionStateResponse,
+  MySessionsResponse,
   Question,
   Answer,
   AnswerCountResponse,
@@ -137,6 +140,9 @@ export const api = {
       playerId: info?.playerId,
     });
   },
+
+  getMySessions: (): Promise<MySessionsResponse> =>
+    fetchAPI('/sessions/mine', mySessionsResponseSchema),
 
   getQuestions: (sessionId: string) =>
     fetchAPI(`/question/${sessionId}`, questionsResponseSchema),

@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { api, savePlayerInfo } from '@/lib/api';
 import { getDeviceId } from '@/lib/device-id';
+import YourGamesSection from './your-games-section';
 
 
 const CATEGORIES = [
@@ -118,6 +119,8 @@ export default function LandingPage() {
             OR JOIN WITH CODE
           </button>
         </div>
+
+        <YourGamesSection />
 
       </div>
     </main>
