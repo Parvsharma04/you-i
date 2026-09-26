@@ -2,7 +2,8 @@
 
 import { useEffect, useState, useCallback, use } from 'react';
 import { useRouter } from 'next/navigation';
-import { api, Question } from '@/lib/api';
+import { api } from '@/lib/api';
+import type { Question } from '@youandi/shared';
 import { useSocket } from '@/lib/useSocket';
 
 

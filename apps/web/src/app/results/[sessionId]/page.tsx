@@ -3,13 +3,14 @@
 import { useEffect, useState, useCallback, use, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { toBlob } from 'html-to-image';
-import { api, QuizResult } from '@/lib/api';
+import { api } from '@/lib/api';
+import type { Result } from '@youandi/shared';
 
 
 export default function ResultsPage({ params }: { params: Promise<{ sessionId: string }> }) {
   const { sessionId } = use(params);
   const router = useRouter();
-  const [result, setResult] = useState<QuizResult | null>(null);
+  const [result, setResult] = useState<Result | null>(null);
   const [loading, setLoading] = useState(true);
   const [animatedScore, setAnimatedScore] = useState(0);
   const [showContent, setShowContent] = useState(false);
@@ -29,11 +30,12 @@ export default function ResultsPage({ params }: { params: Promise<{ sessionId: s
         }
 
         // Try to get existing result first
-        let data = await api.getResult(sessionId, playerId);
-        if (!data) {
-          // Generate new result
-          data = await api.generateResult(sessionId, playerId);
+        let envelope = await api.getResult(sessionId, playerId);
+        if (envelope.status !== 'ready' || !envelope.data) {
+          // Attempt to kick off generation; result may still be 'pending'
+          envelope = await api.generateResult(sessionId, playerId);
         }
+        const data = envelope.status === 'ready' ? envelope.data : null;
         setResult(data);
         setLoading(false);
 
