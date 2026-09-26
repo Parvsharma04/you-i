@@ -1,0 +1,82 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Session {
+  id             String        @id @default(uuid())
+  category       String        // love, friendship, deep_talk, fun, spicy
+  questionCount  Int
+  status         String        @default("waiting") // waiting | active | completed | expired | abandoned
+  code           String?       @unique
+  codeExpiresAt  DateTime?
+  startedAt      DateTime?
+  lastActivityAt DateTime      @default(now())
+  createdAt      DateTime      @default(now())
+  players        SessionPlayer[]
+  answers        Answer[]
+  questions      Question[]
+  result         Result?
+}
+
+model SessionPlayer {
+  id          String   @id @default(uuid())
+  sessionId   String
+  playerId    String
+  role        String   // player1 | player2
+  deviceId    String?
+  joinedAt    DateTime @default(now())
+  completedAt DateTime?
+  session     Session  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@unique([sessionId, role])
+  @@unique([sessionId, playerId])
+  @@index([deviceId])
+}
+
+model Question {
+  id        Int     @id @default(autoincrement())
+  sessionId String
+  text      String
+  type      String  @default("mcq") // mcq | text
+  options   String? // JSON array string for MCQ options
+  session   Session @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+}
+
+model Answer {
+  id         Int     @id @default(autoincrement())
+  sessionId  String
+  questionId Int
+  playerId   String
+  answer     String
+  session    Session @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@unique([sessionId, questionId, playerId])
+}
+
+model Result {
+  id          Int     @id @default(autoincrement())
+  sessionId   String  @unique
+  score       Int
+  summary     String
+  strengths   String  // JSON array string
+  differences String  // JSON array string
+  session     Session @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+}
+
+model JoinRateLimit {
+  id             String   @id @default(uuid())
+  key            String
+  scope          String // 'device' | 'ip'
+  failureCount   Int      @default(0)
+  firstFailureAt DateTime @default(now())
+  lastFailureAt  DateTime @default(now())
+  expiresAt      DateTime
+
+  @@unique([key, scope])
+  @@index([expiresAt])
+}

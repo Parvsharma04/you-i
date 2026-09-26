@@ -1,0 +1,16 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    // Without this, tsc infers the common ancestor of every included file
+    // (src/ *and* prisma/seed.ts) as rootDir, emitting to dist/src/main.js
+    // instead of dist/main.js — which silently breaks `node dist/main`
+    // (the start:prod script) and the production Docker image.
+    "rootDir": "src",
+    // Keep the incremental build info inside the output directory so that
+    // `deleteOutDir: true` in nest-cli.json wipes it along with the emitted
+    // files. Otherwise a deleted dist folder can look "up to date" to tsc,
+    // causing `node dist/main` to fail with MODULE_NOT_FOUND.
+    "tsBuildInfoFile": "./dist/.tsbuildinfo"
+  },
+  "exclude": ["node_modules", "test", "dist", "prisma", "**/*spec.ts"]
+}
