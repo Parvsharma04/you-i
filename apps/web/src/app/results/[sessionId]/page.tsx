@@ -4,66 +4,162 @@ import { useEffect, useState, useCallback, use, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { toBlob } from 'html-to-image';
 import { api, loadPlayerInfo } from '@/lib/api';
-import type { Result } from '@youandi/shared';
-
+import { useSocket } from '@/lib/useSocket';
+import type { Result, ResultStatusResponse } from '@youandi/shared';
 
 export default function ResultsPage({ params }: { params: Promise<{ sessionId: string }> }) {
   const { sessionId } = use(params);
   const router = useRouter();
+  const [playerId, setPlayerId] = useState<string | null>(null);
   const [result, setResult] = useState<Result | null>(null);
   const [loading, setLoading] = useState(true);
+  const [timeoutReached, setTimeoutReached] = useState(false);
+  
   const [animatedScore, setAnimatedScore] = useState(0);
   const [showContent, setShowContent] = useState(false);
   const [copied, setCopied] = useState(false);
   const [sharingScreen, setSharingScreen] = useState(false);
+  
   const captureRef = useRef<HTMLDivElement>(null);
   const shareCardRef = useRef<HTMLDivElement>(null);
 
+  // For guarding generateResult
+  const generationTriggered = useRef(false);
+  const fetchingRef = useRef(false);
+
   useEffect(() => {
-    const loadResults = async () => {
+    const info = loadPlayerInfo(sessionId);
+    if (info?.playerId) {
+      setPlayerId(info.playerId);
+    } else {
+      setLoading(false); // Can't do anything without playerId
+    }
+  }, [sessionId]);
+
+  const { on } = useSocket(sessionId, playerId);
+
+  const applyResult = useCallback((data: Result) => {
+    // Defensive parsing for LLM arrays in case they're malformed
+    let parsedStrengths: string[] = [];
+    let parsedDifferences: string[] = [];
+    
+    try {
+      parsedStrengths = Array.isArray(data.strengths) ? data.strengths : JSON.parse(data.strengths as unknown as string);
+    } catch {
+      parsedStrengths = [];
+    }
+    
+    try {
+      parsedDifferences = Array.isArray(data.differences) ? data.differences : JSON.parse(data.differences as unknown as string);
+    } catch {
+      parsedDifferences = [];
+    }
+    
+    setResult({
+      ...data,
+      strengths: Array.isArray(parsedStrengths) ? parsedStrengths : [],
+      differences: Array.isArray(parsedDifferences) ? parsedDifferences : []
+    });
+    setLoading(false);
+  }, []);
+
+  useEffect(() => {
+    if (!playerId || result) return;
+
+    let mounted = true;
+    let pollIntervalId: NodeJS.Timeout;
+    const startTime = Date.now();
+    let currentPollDelay = 3000;
+
+    const checkResult = async () => {
+      if (fetchingRef.current || !mounted) return;
+      fetchingRef.current = true;
+      
       try {
-        const info = loadPlayerInfo(sessionId);
-        if (!info?.playerId) {
-          setLoading(false);
-          return;
-        }
-
-        // Try to get existing result first
         let envelope = await api.getResult(sessionId);
-        if (envelope.status !== 'ready' || !envelope.data) {
-          // Attempt to kick off generation; result may still be 'pending'
-          envelope = await api.generateResult(sessionId);
+        
+        if (envelope.status === 'none') {
+          if (!generationTriggered.current) {
+            generationTriggered.current = true;
+            envelope = await api.generateResult(sessionId);
+          }
         }
-        const data = envelope.status === 'ready' ? envelope.data : null;
-        setResult(data);
-        setLoading(false);
+        
+        if (!mounted) return;
 
-        // Animate score counter
-        if (data) {
-          let current = 0;
-          const target = data.score;
-          const duration = 1500; // faster for retro feel
-          const step = target / (duration / 16);
-
-          const timer = setInterval(() => {
-            current += step;
-            if (current >= target) {
-              current = target;
-              clearInterval(timer);
-              setTimeout(() => setShowContent(true), 300);
-            }
-            setAnimatedScore(Math.round(current));
-          }, 16);
-
-          return () => clearInterval(timer);
+        if (envelope.status === 'ready' && envelope.data) {
+          applyResult(envelope.data);
+        } else if (envelope.status === 'pending' || envelope.status === 'none') {
+          // Poll
+          scheduleNextPoll();
         }
-      } catch {
-        setLoading(false);
+      } catch (err) {
+        console.error('Failed to get result', err);
+        scheduleNextPoll();
+      } finally {
+        fetchingRef.current = false;
       }
     };
 
-    loadResults();
-  }, [sessionId]);
+    const scheduleNextPoll = () => {
+      if (!mounted) return;
+      
+      const elapsed = Date.now() - startTime;
+      if (elapsed > 90000) {
+        setTimeoutReached(true);
+        setLoading(false);
+        return;
+      }
+      
+      if (elapsed > 30000) {
+        currentPollDelay = 10000;
+      }
+      
+      pollIntervalId = setTimeout(checkResult, currentPollDelay);
+    };
+
+    checkResult();
+
+    return () => {
+      mounted = false;
+      if (pollIntervalId) clearTimeout(pollIntervalId);
+    };
+  }, [playerId, sessionId, result, applyResult]);
+
+  useEffect(() => {
+    if (!result) {
+      const cleanup = on('resultsReady', () => {
+        if (!result && playerId) {
+          api.getResult(sessionId).then(env => {
+            if (env.status === 'ready' && env.data) applyResult(env.data);
+          }).catch(console.error);
+        }
+      });
+      return cleanup;
+    }
+  }, [on, result, playerId, sessionId, applyResult]);
+
+  // Animate score counter
+  useEffect(() => {
+    if (result) {
+      let current = 0;
+      const target = result.score;
+      const duration = 1500;
+      const step = target / (duration / 16);
+
+      const timer = setInterval(() => {
+        current += step;
+        if (current >= target) {
+          current = target;
+          clearInterval(timer);
+          setTimeout(() => setShowContent(true), 300);
+        }
+        setAnimatedScore(Math.round(current));
+      }, 16);
+
+      return () => clearInterval(timer);
+    }
+  }, [result]);
 
   const shareLink = typeof window !== 'undefined'
     ? `${window.location.origin}/lobby/${sessionId}`
@@ -98,19 +194,16 @@ export default function ResultsPage({ params }: { params: Promise<{ sessionId: s
     if (!shareCardRef.current) return;
     setSharingScreen(true);
     try {
-      // Create options for html-to-image to make it super crisp
       const blob = await toBlob(shareCardRef.current, {
-        pixelRatio: 3, // 3x multiplier for high-density screens
-        backgroundColor: '#fff0f5', // solid background color matching bg-primary
+        pixelRatio: 3,
+        backgroundColor: '#fff0f5',
         style: {
           transform: 'scale(1)',
           transformOrigin: 'top left',
         }
       });
       
-      if (!blob) {
-        throw new Error('Failed to generate image blob');
-      }
+      if (!blob) throw new Error('Failed to generate image blob');
 
       const file = new File([blob], 'you-and-i-result.png', { type: 'image/png' });
       if (navigator.canShare && navigator.canShare({ files: [file] })) {
@@ -124,7 +217,6 @@ export default function ResultsPage({ params }: { params: Promise<{ sessionId: s
           console.error('Sharing failed', e);
         }
       } else {
-        // Fallback: download
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
@@ -166,6 +258,25 @@ export default function ResultsPage({ params }: { params: Promise<{ sessionId: s
               CALCULATING VIBES
             </p>
           </div>
+        </div>
+      </main>
+    );
+  }
+
+  if (timeoutReached && !result) {
+    return (
+      <main className="min-h-screen relative overflow-hidden">
+        <div className="container-custom" style={{ justifyContent: 'center', alignItems: 'center', gap: '20px' }}>
+          <span style={{ fontSize: '4rem' }}>O_O</span>
+          <h2>THIS IS TAKING A WHILE</h2>
+          <p style={{ color: 'var(--text-secondary)' }}>THE AI IS STILL THINKING.</p>
+          <button className="btn-primary" onClick={() => {
+            setLoading(true);
+            setTimeoutReached(false);
+            generationTriggered.current = false;
+          }}>
+            TRY AGAIN
+          </button>
         </div>
       </main>
     );
@@ -215,32 +326,36 @@ export default function ResultsPage({ params }: { params: Promise<{ sessionId: s
             </div>
 
             {/* Strengths */}
-            <div className="glass-card p-6 flex flex-col gap-4 opacity-0 animate-[fadeInUp_0.6s_ease_forwards] [animation-delay:0.2s]">
-              <div className="flex items-center gap-2.5">
-                <h3 className="text-[1.1rem] font-bold">STRENGTHS</h3>
+            {result.strengths && result.strengths.length > 0 && (
+              <div className="glass-card p-6 flex flex-col gap-4 opacity-0 animate-[fadeInUp_0.6s_ease_forwards] [animation-delay:0.2s]">
+                <div className="flex items-center gap-2.5">
+                  <h3 className="text-[1.1rem] font-bold">STRENGTHS</h3>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {result.strengths.map((s, i) => (
+                    <span key={i} className="tag strength">
+                      {s}
+                    </span>
+                  ))}
+                </div>
               </div>
-              <div className="flex flex-wrap gap-2">
-                {result.strengths.map((s, i) => (
-                  <span key={i} className="tag strength">
-                    {s}
-                  </span>
-                ))}
-              </div>
-            </div>
+            )}
 
             {/* Differences */}
-            <div className="glass-card p-6 flex flex-col gap-4 opacity-0 animate-[fadeInUp_0.6s_ease_forwards] [animation-delay:0.3s]">
-              <div className="flex items-center gap-2.5">
-                <h3 className="text-[1.1rem] font-bold">WEAKNESSES</h3>
+            {result.differences && result.differences.length > 0 && (
+              <div className="glass-card p-6 flex flex-col gap-4 opacity-0 animate-[fadeInUp_0.6s_ease_forwards] [animation-delay:0.3s]">
+                <div className="flex items-center gap-2.5">
+                  <h3 className="text-[1.1rem] font-bold">WEAKNESSES</h3>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {result.differences.map((d, i) => (
+                    <span key={i} className="tag difference">
+                      {d}
+                    </span>
+                  ))}
+                </div>
               </div>
-              <div className="flex flex-wrap gap-2">
-                {result.differences.map((d, i) => (
-                  <span key={i} className="tag difference">
-                    {d}
-                  </span>
-                ))}
-              </div>
-            </div>
+            )}
 
             {/* Share Section */}
             <div className="text-center flex flex-col items-center gap-4 animate-[fadeInUp_0.6s_ease_0.4s_both] ignore-screenshot">
@@ -285,7 +400,7 @@ export default function ResultsPage({ params }: { params: Promise<{ sessionId: s
         )}
       </div>
 
-      {/* Hidden high-definition sharing card with optimized 9:16 layout */}
+      {/* Hidden high-definition sharing card */}
       <div style={{ position: 'absolute', top: '-9999px', left: '-9999px' }}>
         <div
           ref={shareCardRef}
