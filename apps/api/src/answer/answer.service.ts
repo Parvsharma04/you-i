@@ -7,7 +7,7 @@ import { Answer, AnswerCountResponse, AnswersResponse } from '@youandi/shared';
 export class AnswerService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async submit(dto: SubmitAnswerDto): Promise<Answer> {
+  async submit(dto: SubmitAnswerDto, playerId: string): Promise<Answer> {
     const session = await this.prisma.session.findUnique({
       where: { id: dto.sessionId },
       include: { players: true },
@@ -17,15 +17,12 @@ export class AnswerService {
       throw new BadRequestException('Session not found');
     }
 
-    const player = session.players.find((p) => p.playerId === dto.playerId);
+    const player = session.players.find((p) => p.playerId === playerId);
     if (!player) {
       throw new BadRequestException('Player does not belong to this session');
     }
 
     // Upsert the answer (allows re-answering)
-    // PlayerGuard guarantees playerId is present; the body field is kept
-    // optional only for the legacy fallback path.
-    const playerId = dto.playerId!;
     const answer = await this.prisma.answer.upsert({
       where: {
         sessionId_questionId_playerId: {

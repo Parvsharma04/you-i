@@ -53,8 +53,8 @@ export type ScoreRank = keyof typeof SCORE_RANK_THRESHOLDS | 'F';
 
 /**
  * Header carrying the caller's bearer player id, validated by `PlayerGuard`
- * in apps/api against the session's `SessionPlayer` rows. Replaces the
- * legacy body-based `playerId` field for authenticated routes.
+ * in apps/api against the session's `SessionPlayer` rows. Required for
+ * authenticated player routes.
  */
 export const PLAYER_ID_HEADER = 'x-player-id';
 

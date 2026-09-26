@@ -29,6 +29,7 @@ describe('validateEnv', () => {
 
     expect(env.DATABASE_URL).toBe('postgres://localhost:5432/db');
     expect(env.PORT).toBe(8081);
+    expect(env).not.toHaveProperty('ALLOW_LEGACY_PLAYER_ID_BODY');
     expect(exitSpy).not.toHaveBeenCalled();
   });
 

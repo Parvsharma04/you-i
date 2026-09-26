@@ -23,7 +23,6 @@ const envSchema = z
       .default('development'),
     ALLOWED_ORIGINS: z.string().optional(),
     FRONTEND_URL: z.string().optional(),
-    ALLOW_LEGACY_PLAYER_ID_BODY: z.enum(['true', 'false']).default('true'),
     ALLOW_LEGACY_SESSION_ID_JOIN_BODY: z
       .enum(['true', 'false'])
       .default('true'),

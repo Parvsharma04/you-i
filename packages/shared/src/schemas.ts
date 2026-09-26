@@ -139,15 +139,9 @@ export const questionsResponseSchema = z.array(questionSchema);
 export type QuestionsResponse = z.infer<typeof questionsResponseSchema>;
 
 // ── POST /answer ──────────────────────────────────────────────────────────
-// `playerId` is optional here: the preferred path is the `X-Player-Id`
-// header (see PlayerGuard in apps/api), validated against the session. The
-// body field is only read as a deprecated fallback while apps/web migrates
-// — see ALLOW_LEGACY_PLAYER_ID_BODY in apps/api.
-
 export const submitAnswerRequestSchema = z.object({
   sessionId: z.string(),
   questionId: z.number().int(),
-  playerId: z.string().optional(),
   answer: z.string(),
 });
 export type SubmitAnswerRequest = z.infer<typeof submitAnswerRequestSchema>;
