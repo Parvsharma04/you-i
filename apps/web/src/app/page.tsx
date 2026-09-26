@@ -2,7 +2,8 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { api } from '@/lib/api';
+import { api, savePlayerInfo } from '@/lib/api';
+import { getDeviceId } from '@/lib/device-id';
 
 
 const CATEGORIES = [
@@ -32,9 +33,11 @@ export default function LandingPage() {
     setError('');
     try {
       const result = await api.createSession(category, questionCount);
-      sessionStorage.setItem(`player_${result.sessionId}`, JSON.stringify({
-        playerId: result.playerId, isHost: true,
-      }));
+      savePlayerInfo(result.sessionId, {
+        playerId: result.playerId,
+        isHost: true,
+        deviceId: getDeviceId(),
+      });
       setCreatedCode(result.code);
       router.push(`/lobby/${result.sessionId}`);
     } catch (err) {
@@ -49,9 +52,11 @@ export default function LandingPage() {
     setError('');
     try {
       const result = await api.joinSession(joinCode.trim());
-      sessionStorage.setItem(`player_${result.sessionId}`, JSON.stringify({
-        playerId: result.playerId, isHost: false,
-      }));
+      savePlayerInfo(result.sessionId, {
+        playerId: result.playerId,
+        isHost: false,
+        deviceId: getDeviceId(),
+      });
       router.push(`/lobby/${result.sessionId}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not join.');

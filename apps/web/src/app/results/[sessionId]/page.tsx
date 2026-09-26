@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback, use, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { toBlob } from 'html-to-image';
-import { api } from '@/lib/api';
+import { api, loadPlayerInfo } from '@/lib/api';
 import type { Result } from '@youandi/shared';
 
 
@@ -22,18 +22,17 @@ export default function ResultsPage({ params }: { params: Promise<{ sessionId: s
   useEffect(() => {
     const loadResults = async () => {
       try {
-        const stored = sessionStorage.getItem(`player_${sessionId}`);
-        const playerId = stored ? (JSON.parse(stored).playerId as string) : null;
-        if (!playerId) {
+        const info = loadPlayerInfo(sessionId);
+        if (!info?.playerId) {
           setLoading(false);
           return;
         }
 
         // Try to get existing result first
-        let envelope = await api.getResult(sessionId, playerId);
+        let envelope = await api.getResult(sessionId);
         if (envelope.status !== 'ready' || !envelope.data) {
           // Attempt to kick off generation; result may still be 'pending'
-          envelope = await api.generateResult(sessionId, playerId);
+          envelope = await api.generateResult(sessionId);
         }
         const data = envelope.status === 'ready' ? envelope.data : null;
         setResult(data);

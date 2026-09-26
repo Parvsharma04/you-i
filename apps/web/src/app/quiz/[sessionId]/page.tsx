@@ -2,15 +2,10 @@
 
 import { useEffect, useState, useCallback, use } from 'react';
 import { useRouter } from 'next/navigation';
-import { api } from '@/lib/api';
+import { api, loadPlayerInfo, type StoredPlayerInfo } from '@/lib/api';
 import type { Question } from '@youandi/shared';
 import { useSocket } from '@/lib/useSocket';
 
-
-interface PlayerInfo {
-  playerId: string;
-  isHost: boolean;
-}
 
 export default function QuizPage({ params }: { params: Promise<{ sessionId: string }> }) {
   const { sessionId } = use(params);
@@ -19,7 +14,7 @@ export default function QuizPage({ params }: { params: Promise<{ sessionId: stri
   const [currentIndex, setCurrentIndex] = useState(0);
   const [selectedAnswer, setSelectedAnswer] = useState<string>('');
   const [textAnswer, setTextAnswer] = useState('');
-  const [playerInfo, setPlayerInfo] = useState<PlayerInfo | null>(null);
+  const [playerInfo, setPlayerInfo] = useState<StoredPlayerInfo | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [otherPlayerProgress, setOtherPlayerProgress] = useState(0);
   const [isComplete, setIsComplete] = useState(false);
@@ -33,9 +28,9 @@ export default function QuizPage({ params }: { params: Promise<{ sessionId: stri
 
   // Load player info and questions
   useEffect(() => {
-    const stored = sessionStorage.getItem(`player_${sessionId}`);
+    const stored = loadPlayerInfo(sessionId);
     if (stored) {
-      setPlayerInfo(JSON.parse(stored));
+      setPlayerInfo(stored);
     } else {
       router.push(`/lobby/${sessionId}`);
       return;
@@ -83,7 +78,7 @@ export default function QuizPage({ params }: { params: Promise<{ sessionId: stri
     setSubmitting(true);
 
     try {
-      await api.submitAnswer(sessionId, currentQuestion.id, playerInfo.playerId, answer);
+      await api.submitAnswer(sessionId, currentQuestion.id, answer);
       emitAnswer(currentQuestion.id, currentIndex);
 
       if (currentIndex >= questions.length - 1) {

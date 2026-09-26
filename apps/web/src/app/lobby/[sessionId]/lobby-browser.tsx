@@ -1,14 +1,11 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { api, type SessionResponse } from '@/lib/api';
+import { api, loadPlayerInfo, type StoredPlayerInfo } from '@/lib/api';
+import type { SessionResponse } from '@youandi/shared';
 import { useSocket } from '@/lib/useSocket';
 
-interface PlayerInfo {
-  playerId: string;
-  isHost: boolean;
-}
 
 interface LobbyBrowserProps {
   sessionId: string;
@@ -16,21 +13,14 @@ interface LobbyBrowserProps {
   onLeave?: () => void;
 }
 
-function getStoredPlayerInfo(sessionId: string): PlayerInfo | null {
-  if (typeof window === 'undefined') return null;
-  const stored = sessionStorage.getItem(`player_${sessionId}`);
-  if (!stored) return null;
-  try {
-    return JSON.parse(stored) as PlayerInfo;
-  } catch {
-    return null;
-  }
+function getStoredPlayerInfo(sessionId: string): StoredPlayerInfo | null {
+  return loadPlayerInfo(sessionId);
 }
 
 export default function LobbyBrowser({ sessionId, session: initialSession, onLeave }: LobbyBrowserProps) {
   const router = useRouter();
   const [session, setSession] = useState<SessionResponse>(initialSession);
-  const [playerInfo, setPlayerInfo] = useState<PlayerInfo | null>(() => getStoredPlayerInfo(sessionId));
+  const [playerInfo, setPlayerInfo] = useState<StoredPlayerInfo | null>(() => getStoredPlayerInfo(sessionId));
   const [joining, setJoining] = useState(false);
   const [error, setError] = useState('');
 

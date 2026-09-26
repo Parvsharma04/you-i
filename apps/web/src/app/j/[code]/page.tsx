@@ -2,7 +2,8 @@
 
 import { useParams, useRouter } from 'next/navigation';
 import { useCallback, useState } from 'react';
-import { api } from '@/lib/api';
+import { api, savePlayerInfo } from '@/lib/api';
+import { getDeviceId } from '@/lib/device-id';
 
 export default function JoinByCodePage() {
   const router = useRouter();
@@ -17,10 +18,11 @@ export default function JoinByCodePage() {
     setError('');
     try {
       const result = await api.joinSession(code.trim());
-      sessionStorage.setItem(
-        `player_${result.sessionId}`,
-        JSON.stringify({ playerId: result.playerId, isHost: false }),
-      );
+      savePlayerInfo(result.sessionId, {
+        playerId: result.playerId,
+        isHost: false,
+        deviceId: getDeviceId(),
+      });
       router.push(`/lobby/${result.sessionId}`);
     } catch (err) {
       setLoading(false);

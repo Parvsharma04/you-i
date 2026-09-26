@@ -3,34 +3,74 @@ import {
   joinSessionResponseSchema,
   sessionSchema,
   questionsResponseSchema,
+  answerSchema,
   answerCountResponseSchema,
   resultStatusResponseSchema,
+  PLAYER_ID_HEADER,
+  DEVICE_ID_HEADER,
   type CreateSessionResponse,
   type JoinSessionResponse,
   type SessionResponse,
   type Question,
+  type Answer,
   type AnswerCountResponse,
   type ResultStatusResponse,
 } from '@youandi/shared';
 import { type ZodSchema } from 'zod';
-import { DEVICE_ID_HEADER } from '@youandi/shared';
 import { getDeviceId } from './device-id';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8081';
 
+const SESSION_STORAGE_PREFIX = 'player_';
+
+// ─── Player identity helpers ──────────────────────────────────────────────────
+// The single type for what we keep in sessionStorage per session.
+// deviceId is stored here so we can re-attach it when reading back the record.
+
+export interface StoredPlayerInfo {
+  playerId: string;
+  isHost: boolean;
+  deviceId: string;
+}
+
+export function savePlayerInfo(sessionId: string, info: StoredPlayerInfo): void {
+  sessionStorage.setItem(
+    `${SESSION_STORAGE_PREFIX}${sessionId}`,
+    JSON.stringify(info),
+  );
+}
+
+export function loadPlayerInfo(sessionId: string): StoredPlayerInfo | null {
+  if (typeof window === 'undefined') return null;
+  const raw = sessionStorage.getItem(`${SESSION_STORAGE_PREFIX}${sessionId}`);
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw) as StoredPlayerInfo;
+  } catch {
+    return null;
+  }
+}
+
+// ─── Internal fetch wrapper ───────────────────────────────────────────────────
+// Attaches X-Device-Id automatically. Pass `playerId` to also send X-Player-Id.
+// Call sites must not set either identity header manually.
+
 async function fetchAPI<T>(
   endpoint: string,
   schema: ZodSchema<T>,
-  options?: RequestInit,
+  options?: RequestInit & { playerId?: string },
 ): Promise<T> {
   const deviceId = getDeviceId();
+  const { playerId, ...restOptions } = options ?? {};
+
   const res = await fetch(`${API_URL}${endpoint}`, {
     headers: {
       'Content-Type': 'application/json',
       ...(deviceId ? { [DEVICE_ID_HEADER]: deviceId } : {}),
-      ...options?.headers,
+      ...(playerId ? { [PLAYER_ID_HEADER]: playerId } : {}),
+      ...restOptions.headers,
     },
-    ...options,
+    ...restOptions,
   });
 
   if (!res.ok) {
@@ -51,7 +91,14 @@ async function fetchAPI<T>(
   return parsed.data;
 }
 
-export type { CreateSessionResponse, JoinSessionResponse, SessionResponse, Question, AnswerCountResponse };
+export type {
+  CreateSessionResponse,
+  JoinSessionResponse,
+  SessionResponse,
+  Question,
+  Answer,
+  AnswerCountResponse,
+};
 
 // ─── DRIFT NOTE ──────────────────────────────────────────────────────────────
 // The API wraps result responses in { status, data } (ResultStatusResponse),
@@ -63,6 +110,7 @@ export type { CreateSessionResponse, JoinSessionResponse, SessionResponse, Quest
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const api = {
+  // No player id needed — the server assigns one on create/join.
   createSession: (category: string, questionCount: number) =>
     fetchAPI('/session/create', createSessionResponseSchema, {
       method: 'POST',
@@ -81,42 +129,31 @@ export const api = {
   getQuestions: (sessionId: string) =>
     fetchAPI(`/question/${sessionId}`, questionsResponseSchema),
 
-  submitAnswer: (
-    sessionId: string,
-    questionId: number,
-    playerId: string,
-    answer: string,
-  ) =>
-    fetch(`${API_URL}/answer`, {
+  // playerId is read from sessionStorage — call sites no longer pass it.
+  submitAnswer: (sessionId: string, questionId: number, answer: string): Promise<Answer> => {
+    const info = loadPlayerInfo(sessionId);
+    return fetchAPI('/answer', answerSchema, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Player-Id': playerId,
-        [DEVICE_ID_HEADER]: getDeviceId(),
-      },
-      // playerId is also still sent in the body as a deprecated fallback —
-      // remove once the API's ALLOW_LEGACY_PLAYER_ID_BODY flag is off.
-      body: JSON.stringify({ sessionId, questionId, playerId, answer }),
-    }).then(async (res) => {
-      if (!res.ok) {
-        const error = await res
-          .json()
-          .catch(() => ({ message: 'Request failed' }));
-        throw new Error(error.message || 'Request failed');
-      }
-    }),
+      playerId: info?.playerId,
+      body: JSON.stringify({ sessionId, questionId, answer }),
+    });
+  },
 
   getAnswerCount: (sessionId: string) =>
     fetchAPI(`/answer/${sessionId}/count`, answerCountResponseSchema),
 
-  generateResult: (sessionId: string, playerId: string): Promise<ResultStatusResponse> =>
-    fetchAPI(`/result/generate/${sessionId}`, resultStatusResponseSchema, {
+  generateResult: (sessionId: string): Promise<ResultStatusResponse> => {
+    const info = loadPlayerInfo(sessionId);
+    return fetchAPI(`/result/generate/${sessionId}`, resultStatusResponseSchema, {
       method: 'POST',
-      headers: { 'X-Player-Id': playerId },
-    }),
+      playerId: info?.playerId,
+    });
+  },
 
-  getResult: (sessionId: string, playerId: string): Promise<ResultStatusResponse> =>
-    fetchAPI(`/result/${sessionId}`, resultStatusResponseSchema, {
-      headers: { 'X-Player-Id': playerId },
-    }),
+  getResult: (sessionId: string): Promise<ResultStatusResponse> => {
+    const info = loadPlayerInfo(sessionId);
+    return fetchAPI(`/result/${sessionId}`, resultStatusResponseSchema, {
+      playerId: info?.playerId,
+    });
+  },
 };

@@ -2,7 +2,7 @@
 
 import { useEffect, useState, use } from 'react';
 import { useRouter } from 'next/navigation';
-import { api, type SessionResponse } from '@/lib/api';
+import { api, loadPlayerInfo, type SessionResponse } from '@/lib/api';
 import LobbyBrowser from './lobby-browser';
 
 const PLAY_STORE_URL = 'https://play.google.com/store/apps/details?id=com.youandi.mobile';
@@ -20,7 +20,7 @@ export default function LobbyPage({ params }: { params: Promise<{ sessionId: str
     // If this browser already has player state for the session, skip the
     // install pitch and go straight to the in-browser lobby.
     if (typeof window === 'undefined') return false;
-    return sessionStorage.getItem(`player_${sessionId}`) !== null;
+    return loadPlayerInfo(sessionId) !== null;
   });
 
   useEffect(() => {
