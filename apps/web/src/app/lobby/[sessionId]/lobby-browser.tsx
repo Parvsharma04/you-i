@@ -26,18 +26,40 @@ export default function LobbyBrowser({ sessionId, session: initialSession, onLea
   const [joining, setJoining] = useState(false);
   const [error, setError] = useState('');
 
-  const { on } = useSocket(sessionId, playerInfo?.playerId ?? null);
+  const { on, isConnected } = useSocket(sessionId, playerInfo?.playerId ?? null);
+
+  const rehydrate = useCallback(() => {
+    api.getSession(sessionId).then(setSession).catch(console.error);
+  }, [sessionId]);
+
+  // Rehydrate on reconnect
+  useEffect(() => {
+    if (isConnected) {
+      rehydrate();
+    }
+  }, [isConnected, rehydrate]);
+
+  // Rehydrate on visibility change
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        rehydrate();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, [rehydrate]);
 
   // Listen for player joining.
   useEffect(() => {
     if (!playerInfo) return;
 
     const unsub = on('playerJoined', () => {
-      api.getSession(sessionId).then(setSession);
+      rehydrate();
     });
 
     return unsub;
-  }, [playerInfo, on, sessionId]);
+  }, [playerInfo, on, rehydrate]);
 
   // Auto-redirect when both players are in.
   useEffect(() => {
@@ -181,6 +203,11 @@ export default function LobbyBrowser({ sessionId, session: initialSession, onLea
       </div>
 
       <div className={`toast ${copied ? 'show' : ''}`}>LINK COPIED</div>
+      {!isConnected && (
+        <div style={{ position: 'fixed', top: 10, right: 10, background: '#000', color: '#fff', padding: '4px 8px', fontSize: '12px', zIndex: 50, border: '1px solid #333' }}>
+          RECONNECTING...
+        </div>
+      )}
     </main>
   );
 }

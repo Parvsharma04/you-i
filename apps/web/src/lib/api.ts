@@ -6,11 +6,13 @@ import {
   answerSchema,
   answerCountResponseSchema,
   resultStatusResponseSchema,
+  sessionStateResponseSchema,
   PLAYER_ID_HEADER,
   DEVICE_ID_HEADER,
   type CreateSessionResponse,
   type JoinSessionResponse,
   type SessionResponse,
+  type SessionStateResponse,
   type Question,
   type Answer,
   type AnswerCountResponse,
@@ -97,6 +99,7 @@ export type {
   CreateSessionResponse,
   JoinSessionResponse,
   SessionResponse,
+  SessionStateResponse,
   Question,
   Answer,
   AnswerCountResponse,
@@ -127,6 +130,13 @@ export const api = {
 
   getSession: (sessionId: string) =>
     fetchAPI(`/session/${sessionId}`, sessionSchema),
+
+  getSessionState: (sessionId: string) => {
+    const info = loadPlayerInfo(sessionId);
+    return fetchAPI(`/session/${sessionId}/state`, sessionStateResponseSchema, {
+      playerId: info?.playerId,
+    });
+  },
 
   getQuestions: (sessionId: string) =>
     fetchAPI(`/question/${sessionId}`, questionsResponseSchema),

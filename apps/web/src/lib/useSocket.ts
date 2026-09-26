@@ -1,12 +1,13 @@
 'use client';
 
-import { useEffect, useRef, useCallback } from 'react';
+import { useEffect, useRef, useCallback, useState } from 'react';
 import { io, Socket } from 'socket.io-client';
 
 const SOCKET_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8081';
 
 export function useSocket(sessionId: string | null, playerId: string | null) {
   const socketRef = useRef<Socket | null>(null);
+  const [isConnected, setIsConnected] = useState(false);
 
   useEffect(() => {
     if (!sessionId || !playerId) return;
@@ -17,7 +18,13 @@ export function useSocket(sessionId: string | null, playerId: string | null) {
 
     socket.on('connect', () => {
       console.log('Socket connected:', socket.id);
+      setIsConnected(true);
       socket.emit('joinRoom', { sessionId, playerId });
+    });
+
+    socket.on('disconnect', () => {
+      console.log('Socket disconnected:', socket.id);
+      setIsConnected(false);
     });
 
     socketRef.current = socket;
@@ -56,5 +63,5 @@ export function useSocket(sessionId: string | null, playerId: string | null) {
     };
   }, []);
 
-  return { emitAnswer, emitComplete, on, socket: socketRef };
+  return { emitAnswer, emitComplete, on, socket: socketRef, isConnected };
 }

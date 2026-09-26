@@ -21,7 +21,7 @@ export default function QuizPage({ params }: { params: Promise<{ sessionId: stri
   const [waitingForOther, setWaitingForOther] = useState(false);
   const [error, setError] = useState('');
 
-  const { emitAnswer, emitComplete, on } = useSocket(
+  const { emitAnswer, emitComplete, on, isConnected } = useSocket(
     sessionId,
     playerInfo?.playerId ?? null,
   );
@@ -41,29 +41,64 @@ export default function QuizPage({ params }: { params: Promise<{ sessionId: stri
     });
   }, [sessionId, router]);
 
+  const rehydrate = useCallback(async () => {
+    try {
+      const state = await api.getSessionState(sessionId);
+      
+      // Update local state based on server truth
+      const answeredCount = state.you.answeredQuestionIds.length;
+      setCurrentIndex(Math.min(answeredCount, state.questions.length - 1));
+      setIsComplete(answeredCount >= state.questions.length);
+      
+      setOtherPlayerProgress(state.partner.answeredQuestionIds.length);
+      
+      if (answeredCount >= state.questions.length) {
+        if (state.partner.complete) {
+          router.push(`/results/${sessionId}`);
+        } else {
+          setWaitingForOther(true);
+        }
+      }
+    } catch (err) {
+      console.error('Failed to rehydrate session state:', err);
+    }
+  }, [sessionId, router]);
+
+  // Rehydrate on reconnect
+  useEffect(() => {
+    if (isConnected) {
+      rehydrate();
+    }
+  }, [isConnected, rehydrate]);
+
+  // Rehydrate on visibility change
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        rehydrate();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, [rehydrate]);
+
   // Listen for other player's events
   useEffect(() => {
     if (!playerInfo) return;
 
-    const unsubAnswer = on('answerSubmitted', (...args: unknown[]) => {
-      const data = args[0] as { answerIndex: number };
-      setOtherPlayerProgress((prev) => Math.max(prev, data.answerIndex + 1));
+    const unsubAnswer = on('answerSubmitted', () => {
+      rehydrate();
     });
 
     const unsubComplete = on('playerComplete', () => {
-      if (isComplete) {
-        // Both done, go to results
-        router.push(`/results/${sessionId}`);
-      } else {
-        setWaitingForOther(false);
-      }
+      rehydrate();
     });
 
     return () => {
       unsubAnswer?.();
       unsubComplete?.();
     };
-  }, [playerInfo, on, isComplete, sessionId, router]);
+  }, [playerInfo, on, rehydrate]);
 
   const currentQuestion = questions[currentIndex];
   const progress = questions.length > 0 ? ((currentIndex) / questions.length) * 100 : 0;
@@ -234,6 +269,11 @@ export default function QuizPage({ params }: { params: Promise<{ sessionId: stri
           )}
         </button>
       </div>
+      {!isConnected && (
+        <div style={{ position: 'fixed', top: 10, right: 10, background: '#000', color: '#fff', padding: '4px 8px', fontSize: '12px', zIndex: 50, border: '1px solid #333' }}>
+          RECONNECTING...
+        </div>
+      )}
     </main>
   );
 }
