@@ -75,7 +75,9 @@ async function fetchAPI<T>(
 
   if (!res.ok) {
     const error = await res.json().catch(() => ({ message: 'Request failed' }));
-    throw new Error(error.message || 'Request failed');
+    const err = new Error(error.message || 'Request failed') as Error & { code?: string };
+    if (typeof error.code === 'string') err.code = error.code;
+    throw err;
   }
 
   const text = await res.text();

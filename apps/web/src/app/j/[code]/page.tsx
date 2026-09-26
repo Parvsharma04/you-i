@@ -4,6 +4,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { useCallback, useState } from 'react';
 import { api, savePlayerInfo } from '@/lib/api';
 import { getDeviceId } from '@/lib/device-id';
+import { joinErrorMessage } from '@/lib/join-code';
 
 export default function JoinByCodePage() {
   const router = useRouter();
@@ -26,7 +27,8 @@ export default function JoinByCodePage() {
       router.push(`/lobby/${result.sessionId}`);
     } catch (err) {
       setLoading(false);
-      setError(err instanceof Error ? err.message : 'Could not join.');
+      const raw = err as Error & { code?: string };
+      setError(raw.code ? joinErrorMessage(raw.code) : (raw.message || 'Could not join. Try again.'));
     }
   }, [code, router]);
 

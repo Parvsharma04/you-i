@@ -1,10 +1,11 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { api, loadPlayerInfo, type StoredPlayerInfo } from '@/lib/api';
 import type { SessionResponse } from '@youandi/shared';
 import { useSocket } from '@/lib/useSocket';
+import RoomCodeCard from './room-code-card';
 
 
 interface LobbyBrowserProps {
@@ -21,6 +22,7 @@ export default function LobbyBrowser({ sessionId, session: initialSession, onLea
   const router = useRouter();
   const [session, setSession] = useState<SessionResponse>(initialSession);
   const [playerInfo, setPlayerInfo] = useState<StoredPlayerInfo | null>(() => getStoredPlayerInfo(sessionId));
+  const [copied, setCopied] = useState(false);
   const [joining, setJoining] = useState(false);
   const [error, setError] = useState('');
 
@@ -53,6 +55,32 @@ export default function LobbyBrowser({ sessionId, session: initialSession, onLea
   };
 
   const roomCode = session.code;
+
+  const shareLink = typeof window !== 'undefined'
+    ? `${window.location.origin}/lobby/${sessionId}`
+    : '';
+
+  const handleCopyLink = useCallback(async () => {
+    try {
+      await navigator.clipboard.writeText(shareLink);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      const input = document.createElement('input');
+      input.value = shareLink;
+      document.body.appendChild(input);
+      input.select();
+      document.execCommand('copy');
+      document.body.removeChild(input);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  }, [shareLink]);
+
+  const handleShareWhatsApp = () => {
+    const text = encodeURIComponent(`PLAYER 2 PRESS START: \n\n${shareLink}`);
+    window.open(`https://wa.me/?text=${text}`, '_blank');
+  };
 
   const isHost = playerInfo?.isHost;
   const isWaiting = session.status === 'waiting';
@@ -106,16 +134,23 @@ export default function LobbyBrowser({ sessionId, session: initialSession, onLea
           </div>
         )}
 
-        {isHost && isWaiting && (
+        {isHost && isWaiting && roomCode && (
           <>
+            <RoomCodeCard code={roomCode} expiresAt={session.codeExpiresAt ?? null} />
+
             <div className="p-6 flex flex-col gap-4 bg-bg-card border-4 border-border-color shadow-retro">
-              <p className="text-[1.2rem] font-display text-text-primary">ROOM CODE</p>
+              <p className="text-[1.2rem] font-display text-text-primary">INVITE LINK</p>
               <div className="p-3 bg-bg-secondary border-2 border-border-color overflow-x-auto shadow-input">
-                <code className="text-2xl text-text-primary tracking-widest font-display">{roomCode}</code>
+                <code className="text-base text-text-primary break-all">{shareLink}</code>
               </div>
-              <p className="text-text-secondary text-base font-display text-center">
-                Share this code with Player 2.
-              </p>
+              <div className="flex gap-2.5 flex-wrap justify-center">
+                <button id="copy-link-btn" className="share-btn" onClick={handleCopyLink}>
+                  {copied ? 'COPIED!' : 'COPY'}
+                </button>
+                <button id="share-whatsapp-btn" className="share-btn whatsapp" onClick={handleShareWhatsApp}>
+                  WHATSAPP
+                </button>
+              </div>
             </div>
 
             <div className="flex flex-col items-center gap-5 mt-6">
@@ -145,6 +180,7 @@ export default function LobbyBrowser({ sessionId, session: initialSession, onLea
         )}
       </div>
 
+      <div className={`toast ${copied ? 'show' : ''}`}>LINK COPIED</div>
     </main>
   );
 }

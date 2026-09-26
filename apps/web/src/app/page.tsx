@@ -113,18 +113,9 @@ export default function LandingPage() {
         </button>
 
         <div className="flex flex-col gap-4 mt-6">
-          <h3 className="text-[1.2rem] font-display text-text-primary text-center">OR ENTER CODE:</h3>
-          <input
-            type="text"
-            value={joinCode}
-            onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
-            placeholder="6-DIGIT CODE"
-            maxLength={6}
-            className="p-3 bg-bg-secondary border-2 border-border-color text-text-primary text-center font-display tracking-widest"
-          />
-          <button id="join-btn" className="btn-primary" onClick={handleJoin}
-            disabled={loading || joinCode.trim().length < 6} style={{ width: '100%', padding: '16px' }}>
-            {loading ? 'JOINING...' : 'JOIN GAME'}
+          <button id="goto-join-btn" className="share-btn w-full justify-center" onClick={() => router.push('/join')}
+            style={{ width: '100%', padding: '16px' }}>
+            OR JOIN WITH CODE
           </button>
         </div>
 
