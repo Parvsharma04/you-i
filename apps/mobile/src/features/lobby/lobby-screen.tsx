@@ -183,7 +183,7 @@ export default function LobbyScreen() {
           {(status === 'host' || status === 'waiting') && (
             <>
               <View className="mb-8 items-center gap-3">
-                <View className="border-2 border-border-color bg-bg-card px-3 py-1">
+                <View className="border-2 border-border-color bg-bg-card px-3 py-1 dark:border-border-color dark:bg-bg-card">
                   <Text variant="body-sm" bold color="primary">
                     MODE: {category ? formatCategory(category) : '…'}
                   </Text>
@@ -211,7 +211,7 @@ export default function LobbyScreen() {
                       ROOM CODE
                     </Text>
                     <Pressable onPress={handleCopyCode}>
-                      <View className="border-3 border-border-color bg-bg-secondary p-4 active:opacity-70">
+                      <View className="border-3 border-border-color bg-bg-secondary p-4 active:opacity-70 dark:border-border-color dark:bg-bg-secondary">
                         <Text
                           variant="mono"
                           color="primary"

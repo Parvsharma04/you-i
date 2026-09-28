@@ -9,6 +9,7 @@ import {
 import { KeyboardProvider } from 'react-native-keyboard-controller';
 import { CATEGORIES } from '@youandi/shared';
 import { useColorScheme } from 'react-native';
+import { View } from 'react-native';
 
 import { AnimatedSplashOverlay } from '@/components/animated-icon';
 import { ConnectivityBanner } from '@/components/connectivity-banner';
@@ -37,20 +38,25 @@ export default function RootLayout() {
       value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}
     >
       <ThemeProvider>
-        <AnimatedSplashOverlay />
-        <PrivacyOverlay />
-        <ConnectivityBanner />
-        <KeyboardProvider>
-          <ErrorBoundary context={{ route: 'root' }}>
-            <Stack
-              screenOptions={{
-                headerShown: false,
-                animation: 'default',
-                gestureEnabled: true,
-              }}
-            />
-          </ErrorBoundary>
-        </KeyboardProvider>
+        <View
+          className={colorScheme === 'dark' ? 'dark flex-1' : 'flex-1'}
+          style={{ flex: 1 }}
+        >
+          <AnimatedSplashOverlay />
+          <PrivacyOverlay />
+          <ConnectivityBanner />
+          <KeyboardProvider>
+            <ErrorBoundary context={{ route: 'root' }}>
+              <Stack
+                screenOptions={{
+                  headerShown: false,
+                  animation: 'default',
+                  gestureEnabled: true,
+                }}
+              />
+            </ErrorBoundary>
+          </KeyboardProvider>
+        </View>
       </ThemeProvider>
     </RouterThemeProvider>
   );

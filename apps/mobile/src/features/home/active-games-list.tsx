@@ -245,7 +245,7 @@ export default function ActiveGamesList({
                         </Text>
                       </View>
                     </View>
-                    <View className="border-2 border-border-color bg-bg-secondary px-3 py-1">
+                    <View className="border-2 border-border-color bg-bg-secondary px-3 py-1 dark:border-border-color dark:bg-bg-secondary">
                       <Text variant="body-xs" bold color={status.color}>
                         {status.label}
                       </Text>

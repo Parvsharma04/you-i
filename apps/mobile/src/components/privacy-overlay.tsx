@@ -28,7 +28,7 @@ export function PrivacyOverlay() {
     <View
       accessibilityRole="none"
       accessibilityLabel="App is in the background"
-      className="absolute inset-0 z-[9999] bg-bg-primary"
+      className="absolute inset-0 z-[9999] bg-bg-primary dark:bg-bg-primary"
       pointerEvents="none"
     />
   );

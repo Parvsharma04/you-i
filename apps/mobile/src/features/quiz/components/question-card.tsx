@@ -31,7 +31,7 @@ export function QuestionCard({
 }: QuestionCardProps) {
   const [inputHeight, setInputHeight] = useState(120);
   return (
-    <View className="gap-6 bg-bg-card">
+    <View className="gap-6 bg-bg-card dark:bg-bg-card">
       <View className="relative overflow-hidden">
         <Text variant="display-md" color="primary" className="leading-snug">
           {question.text}
@@ -68,7 +68,7 @@ export function QuestionCard({
                 ),
               )
             }
-            className="border-3 border-border-color bg-bg-card p-4 font-body text-base text-text-primary"
+            className="border-3 border-border-color bg-bg-card p-4 font-body text-base text-text-primary dark:border-border-color dark:bg-bg-card dark:text-text-primary"
             style={{ height: inputHeight, textAlignVertical: 'top' }}
             placeholder="TYPE YOUR ANSWER..."
             placeholderTextColor="#cd5c5c"

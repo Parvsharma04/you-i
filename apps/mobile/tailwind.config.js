@@ -4,16 +4,20 @@ module.exports = {
   // every dir with `className` usage must be listed or it silently drops
   // those utilities with no build error.
   content: ['./src/**/*.{js,jsx,ts,tsx}', './app/**/*.{js,jsx,ts,tsx}'],
+  darkMode: 'class',
   presets: [require('nativewind/preset')],
   theme: {
     extend: {
       colors: {
-        surface: '#F4F3F8',
-        card: '#FFFFFF',
-        ink: '#17141F',
-        'ink-2': '#5E586E',
-        'ink-3': '#928CA3',
-        line: '#E8E5F0',
+        // Semantic surface colors. Light/dark values are driven by CSS
+        // custom properties in global.css so `dark:` variants flip
+        // automatically when a parent has the `.dark` class.
+        surface: 'var(--color-surface)',
+        card: 'var(--color-card)',
+        ink: 'var(--color-ink)',
+        'ink-2': 'var(--color-ink-2)',
+        'ink-3': 'var(--color-ink-3)',
+        line: 'var(--color-line)',
         category: {
           love: '#FF5C8A',
           friendship: '#FF9147',
@@ -22,14 +26,15 @@ module.exports = {
           spicy: '#FF3D68',
         },
         // Compatibility names for existing primitives while screens migrate.
-        'bg-primary': '#F4F3F8',
-        'bg-secondary': '#E8E5F0',
-        'bg-card': '#FFFFFF',
-        'text-primary': '#17141F',
-        'text-secondary': '#5E586E',
-        'text-muted': '#928CA3',
+        // These alias the semantic CSS variables above.
+        'bg-primary': 'var(--color-surface)',
+        'bg-secondary': 'var(--color-bg-secondary)',
+        'bg-card': 'var(--color-card)',
+        'text-primary': 'var(--color-ink)',
+        'text-secondary': 'var(--color-ink-2)',
+        'text-muted': 'var(--color-ink-3)',
         accent: '#FF5C8A',
-        'border-color': '#E8E5F0',
+        'border-color': 'var(--color-line)',
       },
       spacing: {
         1: '4px',

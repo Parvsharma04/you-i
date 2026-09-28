@@ -16,14 +16,14 @@ export function ProgressBar({
   variant = 'you',
 }: ProgressBarProps) {
   const pct = total > 0 ? Math.round((progress / total) * 100) : 0;
-  const fillColor = variant === 'you' ? 'bg-accent' : 'bg-text-muted';
+  const fillColor = variant === 'you' ? 'bg-accent' : 'bg-text-muted dark:bg-text-muted';
 
   return (
     <View className="flex-row items-center gap-3">
       <Text variant="body-xs" bold color="muted" className="w-10">
         {label}
       </Text>
-      <View className="h-3 flex-1 border-2 border-border-color bg-bg-secondary">
+      <View className="h-3 flex-1 border-2 border-border-color bg-bg-secondary dark:border-border-color dark:bg-bg-secondary">
         <View className={`h-full ${fillColor}`} style={{ width: `${pct}%` }} />
       </View>
     </View>

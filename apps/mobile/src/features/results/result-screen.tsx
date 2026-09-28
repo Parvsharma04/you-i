@@ -145,7 +145,7 @@ function ResultHero({
       <AnimatedTextInput
         editable={false}
         animatedProps={animatedProps}
-        className="font-display text-display-lg text-text-primary text-center bg-transparent border-0 p-0 m-0"
+        className="font-display text-display-lg text-text-primary text-center bg-transparent border-0 p-0 m-0 dark:text-text-primary"
         underlineColorAndroid="transparent"
         caretHidden
       />
@@ -249,7 +249,7 @@ export default function ResultScreen({
           <ResultHero score={result?.score ?? null} pending={pending} />
           <FadeInStagger index={0}>
             <View className="items-center gap-2">
-              <View className="border-2 border-border-color bg-bg-card px-3 py-1">
+              <View className="border-2 border-border-color bg-bg-card px-3 py-1 dark:border-border-color dark:bg-bg-card">
                 <Text variant="display-md" color="accent">
                   {rank ? `RANK ${rank}` : 'GENERATING'}
                 </Text>
@@ -309,7 +309,7 @@ export default function ResultScreen({
                     {strengths.map((strength, index) => (
                       <View
                         key={`${strength}-${index}`}
-                        className="border-2 border-border-color bg-bg-secondary px-3 py-1"
+                        className="border-2 border-border-color bg-bg-secondary px-3 py-1 dark:border-border-color dark:bg-bg-secondary"
                       >
                         <Text variant="body-sm" color="primary">
                           {strength}
@@ -333,7 +333,7 @@ export default function ResultScreen({
                     {differences.map((difference, index) => (
                       <View
                         key={`${difference}-${index}`}
-                        className="border-2 border-border-color bg-bg-secondary px-3 py-1"
+                        className="border-2 border-border-color bg-bg-secondary px-3 py-1 dark:border-border-color dark:bg-bg-secondary"
                       >
                         <Text variant="body-sm" color="primary">
                           {difference}

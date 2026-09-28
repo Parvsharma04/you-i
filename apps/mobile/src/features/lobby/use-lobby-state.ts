@@ -155,21 +155,31 @@ export function useLobbyState(sessionId: string | undefined) {
   }, [playerId, gameState, navigateToQuiz]);
 
   useEffect(() => {
-    if (!playerId || socketStatus !== 'offline' || !sessionId) return;
+    if (!playerId || !sessionId || navigatingRef.current) return;
+
+    let mounted = true;
+    let checking = false;
 
     const tick = async () => {
+      if (checking || navigatingRef.current) return;
+      checking = true;
       try {
-        const state = await getSessionState(sessionId, playerId);
-        if (state.partner.joined) navigateToQuiz();
+        const latest = await getSessionState(sessionId, playerId);
+        if (mounted && latest.partner.joined) navigateToQuiz();
       } catch {
-        // Ignore and retry on the next interval.
+        // Retry on the next tick; transient network errors should not block the lobby.
+      } finally {
+        checking = false;
       }
     };
 
     void tick();
-    const intervalId = setInterval(tick, 5000);
-    return () => clearInterval(intervalId);
-  }, [playerId, socketStatus, sessionId, navigateToQuiz]);
+    const intervalId = setInterval(() => void tick(), 5000);
+    return () => {
+      mounted = false;
+      clearInterval(intervalId);
+    };
+  }, [playerId, sessionId, navigateToQuiz]);
 
   useInterceptBack(
     useCallback(

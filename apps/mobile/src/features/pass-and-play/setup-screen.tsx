@@ -200,7 +200,7 @@ export default function PassAndPlaySetupScreen() {
               placeholderTextColor="#cd5c5c"
               editable={!isPending}
               maxLength={20}
-              className="border-3 border-border-color bg-bg-card px-4 py-3 font-body text-base text-text-primary"
+              className="border-3 border-border-color bg-bg-card px-4 py-3 font-body text-base text-text-primary dark:border-border-color dark:bg-bg-card dark:text-text-primary"
             />
             <TextInput
               value={player2Name}
@@ -209,7 +209,7 @@ export default function PassAndPlaySetupScreen() {
               placeholderTextColor="#cd5c5c"
               editable={!isPending}
               maxLength={20}
-              className="border-3 border-border-color bg-bg-card px-4 py-3 font-body text-base text-text-primary"
+              className="border-3 border-border-color bg-bg-card px-4 py-3 font-body text-base text-text-primary dark:border-border-color dark:bg-bg-card dark:text-text-primary"
             />
           </View>
 

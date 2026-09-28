@@ -85,7 +85,7 @@ function GridBackground() {
       {horizontal.map((i) => (
         <View
           key={`h-${i}`}
-          className="absolute left-0 right-0 bg-bg-secondary"
+          className="absolute left-0 right-0 bg-bg-secondary dark:bg-bg-secondary"
           style={{
             top: i * GRID_SIZE,
             height: 1,
@@ -96,7 +96,7 @@ function GridBackground() {
       {vertical.map((i) => (
         <View
           key={`v-${i}`}
-          className="absolute top-0 bottom-0 bg-bg-secondary"
+          className="absolute top-0 bottom-0 bg-bg-secondary dark:bg-bg-secondary"
           style={{
             left: i * GRID_SIZE,
             width: 1,
@@ -256,7 +256,7 @@ export const ShareCard = forwardRef<View, ShareCardProps>(function ShareCard(
           {/* Analysis */}
           <RetroShadowSurface
             shadowSize={4}
-            className="w-full p-4 border-3 bg-bg-card"
+            className="w-full p-4 border-3 bg-bg-card dark:bg-bg-card"
           >
             <View className="gap-2">
               <Text

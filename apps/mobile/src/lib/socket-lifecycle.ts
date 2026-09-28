@@ -73,7 +73,10 @@ export async function rehydrate(): Promise<void> {
 
   // Deduplicate concurrent rehydrates so a reconnect + manual refresh +
   // foreground event don't trigger a fetch storm.
-  if (rehydratePromise) return rehydratePromise;
+  if (rehydratePromise) {
+    await rehydratePromise;
+    return;
+  }
 
   rehydratePromise = (async () => {
     try {
@@ -94,7 +97,7 @@ export async function rehydrate(): Promise<void> {
     }
   })();
 
-  return rehydratePromise;
+  await rehydratePromise;
 }
 
 function handleAppStateChange(next: AppStateStatus): void {

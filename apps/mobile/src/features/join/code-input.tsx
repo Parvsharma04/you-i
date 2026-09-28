@@ -182,8 +182,8 @@ export default function CodeInput({
                     ? 'border-accent'
                     : selection.start === i || isSelected(i)
                       ? 'border-accent'
-                      : 'border-border-color'
-                } ${codeArray[i] ? 'bg-bg-card' : 'bg-bg-secondary'}`}
+                      : 'border-border-color dark:border-border-color'
+                } ${codeArray[i] ? 'bg-bg-card dark:bg-bg-card' : 'bg-bg-secondary dark:bg-bg-secondary'}`}
               >
                 <Pressable onPress={() => handleBoxPress(i)}>
                   <Text

@@ -132,7 +132,7 @@ export default function PassAndPlayScreen({
             <Text variant="body-xs" bold color="muted">
               STAGE {currentIndex + 1}/{totalQuestions}
             </Text>
-            <View className="border-2 border-border-color bg-bg-card px-3 py-1">
+            <View className="border-2 border-border-color bg-bg-card px-3 py-1 dark:border-border-color dark:bg-bg-card">
               <Text variant="body-xs" bold color="secondary">
                 {currentRole === 'player1'
                   ? (record.player1Name ?? 'PLAYER 1').toUpperCase()

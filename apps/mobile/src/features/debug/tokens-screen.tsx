@@ -32,11 +32,11 @@ function Swatch({ label, color }: { label: string; color: string }) {
     <View className="mb-4 w-[155px]">
       <View
         accessibilityLabel={`${label} ${color}`}
-        className="h-16 rounded-card border border-line"
+        className="h-16 rounded-card border border-line dark:border-line"
         style={{ backgroundColor: color }}
       />
-      <Text className="mt-2 font-body text-sm text-ink">{label}</Text>
-      <Text className="font-body text-xs text-ink-2">{color}</Text>
+      <Text className="mt-2 font-body text-sm text-ink dark:text-ink">{label}</Text>
+      <Text className="font-body text-xs text-ink-2 dark:text-ink-2">{color}</Text>
     </View>
   );
 }
@@ -45,7 +45,7 @@ function Palette({ scheme }: { scheme: ColorScheme }) {
   const theme = resolveTheme(scheme);
   return (
     <View className="mb-6">
-      <Text className="mb-3 font-display-700 text-2xl text-ink">
+      <Text className="mb-3 font-display-700 text-2xl text-ink dark:text-ink">
         {scheme} palette
       </Text>
       <View className="flex-row flex-wrap justify-between">
@@ -64,17 +64,17 @@ export default function TokensScreen() {
         contentContainerClassName="px-5 pb-12 pt-6"
         showsVerticalScrollIndicator={false}
       >
-        <Text className="font-display-800 text-[52px] leading-[58px] text-ink">
+        <Text className="font-display-800 text-[52px] leading-[58px] text-ink dark:text-ink">
           Theme tokens
         </Text>
-        <Text className="mb-8 font-body text-base text-ink-2">
+        <Text className="mb-8 font-body text-base text-ink-2 dark:text-ink-2">
           All palettes, category tints, type sizes, and the spicy dark override.
         </Text>
 
         <Palette scheme="light" />
         <Palette scheme="dark" />
 
-        <Text className="mb-3 font-display-700 text-2xl text-ink">
+        <Text className="mb-3 font-display-700 text-2xl text-ink dark:text-ink">
           Category tints
         </Text>
         <View className="mb-6 flex-row flex-wrap justify-between">
@@ -83,15 +83,15 @@ export default function TokensScreen() {
               <View
                 className={`h-16 rounded-card ${categoryClassNames[name]}`}
               />
-              <Text className="mt-2 font-body text-sm text-ink">{name}</Text>
-              <Text className="font-body text-xs text-ink-2">
+              <Text className="mt-2 font-body text-sm text-ink dark:text-ink">{name}</Text>
+              <Text className="font-body text-xs text-ink-2 dark:text-ink-2">
                 {categoryColors[name]}
               </Text>
             </View>
           ))}
         </View>
 
-        <Text className="mb-3 font-display-700 text-2xl text-ink">
+        <Text className="mb-3 font-display-700 text-2xl text-ink dark:text-ink">
           Resolved layers
         </Text>
         <View className="mb-6 gap-3">
@@ -100,13 +100,13 @@ export default function TokensScreen() {
             return (
               <View
                 key={category}
-                className="flex-row items-center rounded-card bg-card p-4"
+                className="flex-row items-center rounded-card bg-card p-4 dark:bg-card"
               >
                 <View
                   className="mr-3 h-8 w-8 rounded-full"
                   style={{ backgroundColor: theme.accent }}
                 />
-                <Text className="font-body-600 text-base text-ink">
+                <Text className="font-body-600 text-base text-ink dark:text-ink">
                   {category}: {theme.scheme} palette
                 </Text>
               </View>
@@ -114,14 +114,14 @@ export default function TokensScreen() {
           })}
         </View>
 
-        <Text className="mb-3 font-display-700 text-2xl text-ink">
+        <Text className="mb-3 font-display-700 text-2xl text-ink dark:text-ink">
           Type scale
         </Text>
         <View className="gap-3">
           {Object.entries(themeTokens.type).map(([name, size]) => (
             <Text
               key={name}
-              className="font-display text-ink"
+              className="font-display text-ink dark:text-ink"
               style={{ fontSize: size, lineHeight: size * 1.15 }}
             >
               {name} · {size}
@@ -129,18 +129,18 @@ export default function TokensScreen() {
           ))}
         </View>
 
-        <Text className="mb-3 mt-8 font-display-700 text-2xl text-ink">
+        <Text className="mb-3 mt-8 font-display-700 text-2xl text-ink dark:text-ink">
           Geometry
         </Text>
-        <Text className="font-body text-base text-ink-2">
+        <Text className="font-body text-base text-ink-2 dark:text-ink-2">
           Radius: tile {themeTokens.radius.tile}, card {themeTokens.radius.card}
           , screen {themeTokens.radius.screen}
         </Text>
-        <Text className="mt-2 font-body text-base text-ink-2">
+        <Text className="mt-2 font-body text-base text-ink-2 dark:text-ink-2">
           Spacing: {Object.values(themeTokens.spacing).join(' · ')}
         </Text>
         <Text
-          className="mt-2 font-body text-base text-ink-2"
+          className="mt-2 font-body text-base text-ink-2 dark:text-ink-2"
           style={{ fontFamily: FONT_FAMILY.body }}
         >
           Shadow: {themeTokens.shadow}

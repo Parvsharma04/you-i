@@ -24,7 +24,7 @@ export function ConnectivityBanner() {
           ? 'No internet connection. Check your network settings.'
           : 'Server unreachable. Retrying.'
       }
-      className={`absolute left-0 right-0 top-0 z-50 h-1 ${isNoInternet ? 'bg-accent' : 'bg-text-muted'}`}
+      className={`absolute left-0 right-0 top-0 z-50 h-1 ${isNoInternet ? 'bg-accent' : 'bg-text-muted dark:bg-text-muted'}`}
     />
   );
 }
