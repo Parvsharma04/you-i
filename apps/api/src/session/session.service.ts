@@ -502,8 +502,6 @@ IMPORTANT: Respond ONLY with valid JSON in this exact format, no other text:
       throw new JoinSessionException('CODE_NOT_FOUND');
     }
 
-    const now = new Date();
-
     const session = await this.prisma.session.findUnique({
       where: { code },
       include: { players: true },
@@ -557,7 +555,7 @@ IMPORTANT: Respond ONLY with valid JSON in this exact format, no other text:
           FROM "Session" s
           WHERE s.code = ${code}
             AND s.status = ${SESSION_STATUSES.WAITING}
-            AND s."codeExpiresAt" > ${now}
+            AND s."codeExpiresAt" > NOW() AT TIME ZONE 'UTC'
             AND NOT EXISTS (
               SELECT 1 FROM "SessionPlayer" p
               WHERE p."sessionId" = s.id AND p.role = 'player2'
@@ -567,7 +565,7 @@ IMPORTANT: Respond ONLY with valid JSON in this exact format, no other text:
           INSERT INTO "SessionPlayer" (
             "id", "sessionId", "playerId", "role", "deviceId", "joinedAt"
           )
-          SELECT gen_random_uuid(), c.id, ${player2Id}, 'player2', ${deviceId}, ${now}
+          SELECT gen_random_uuid(), c.id, ${player2Id}, 'player2', ${deviceId}, NOW() AT TIME ZONE 'UTC'
           FROM candidate c
           ON CONFLICT ("sessionId", role) DO NOTHING
           RETURNING "sessionId", "playerId"
@@ -577,8 +575,8 @@ IMPORTANT: Respond ONLY with valid JSON in this exact format, no other text:
           SET status = ${SESSION_STATUSES.ACTIVE},
               code = NULL,
               "codeExpiresAt" = NULL,
-              "startedAt" = ${now},
-              "lastActivityAt" = ${now}
+              "startedAt" = NOW() AT TIME ZONE 'UTC',
+              "lastActivityAt" = NOW() AT TIME ZONE 'UTC'
           FROM new_player np
           WHERE s.id = np."sessionId"
           RETURNING s.id, s.category, s."questionCount", np."playerId"
@@ -639,8 +637,6 @@ IMPORTANT: Respond ONLY with valid JSON in this exact format, no other text:
       throw error;
     }
 
-    const now = new Date();
-
     const session = await this.prisma.session.findUnique({
       where: { id: sessionId },
       include: { players: true },
@@ -698,7 +694,7 @@ IMPORTANT: Respond ONLY with valid JSON in this exact format, no other text:
           INSERT INTO "SessionPlayer" (
             "id", "sessionId", "playerId", "role", "deviceId", "joinedAt"
           )
-          SELECT gen_random_uuid(), c.id, ${player2Id}, 'player2', ${deviceId}, ${now}
+          SELECT gen_random_uuid(), c.id, ${player2Id}, 'player2', ${deviceId}, NOW() AT TIME ZONE 'UTC'
           FROM candidate c
           ON CONFLICT ("sessionId", role) DO NOTHING
           RETURNING "sessionId", "playerId"
@@ -708,8 +704,8 @@ IMPORTANT: Respond ONLY with valid JSON in this exact format, no other text:
           SET status = ${SESSION_STATUSES.ACTIVE},
               code = NULL,
               "codeExpiresAt" = NULL,
-              "startedAt" = ${now},
-              "lastActivityAt" = ${now}
+              "startedAt" = NOW() AT TIME ZONE 'UTC',
+              "lastActivityAt" = NOW() AT TIME ZONE 'UTC'
           FROM new_player np
           WHERE s.id = np."sessionId"
           RETURNING s.id, s.category, s."questionCount", np."playerId"
