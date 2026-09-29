@@ -9,6 +9,7 @@ import Animated, {
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 
 import { GeneratingQuestions } from '@/components/loading';
+import { ScreenHeader } from '@/components/screen-header';
 import { ProgressPair } from '@/components/ui/progress-pair';
 import { Screen } from '@/components/ui/screen';
 import { Text } from '@/components/ui/text';
@@ -89,6 +90,7 @@ export function QuizScreen({
 
   return (
     <Screen>
+      <ScreenHeader title="Quiz" />
       <KeyboardAwareScrollView
         className="flex-1"
         contentContainerClassName="flex-grow"
@@ -114,7 +116,7 @@ export function QuizScreen({
 
         {!isLoading && !error && !localComplete && currentQuestion && (
           <View className="flex-1 gap-6 px-6 py-8">
-            <View className="gap-3">
+            <View className="gap-4">
               <ProgressPair
                 yours={youProgress}
                 theirs={partnerProgress}

@@ -5,13 +5,14 @@ import { FlashList } from '@shopify/flash-list';
 import { useFocusEffect, type Href } from 'expo-router';
 import { type MySession, SESSION_STATUSES } from '@youandi/shared';
 
-import { Card } from '@/components/ui/card';
+import { Card } from '@/components/card';
 import {
   GamesListSkeleton,
   SkeletonSwap,
   useMinimumDuration,
 } from '@/components/loading';
 import { Text, type TextColor } from '@/components/ui/text';
+import { GAPS, PADDING, SECTION_MARGIN } from '@/design-system';
 import { ApiError, NetworkError, TimeoutError, getMySessions } from '@/lib/api';
 import { getSession, saveSession } from '@/lib/storage';
 import { FadeInStagger, MotionPressable } from '@/theme';
@@ -194,11 +195,11 @@ export default function ActiveGamesList({
   }
 
   const games = (
-    <View className="mt-8">
+    <View className={SECTION_MARGIN.beforeAction}>
       <Text
         variant="body-sm"
         color="muted"
-        className="mb-3 uppercase tracking-widest"
+        className={`${SECTION_MARGIN.label} uppercase tracking-widest`}
       >
         Active games
       </Text>
@@ -217,9 +218,11 @@ export default function ActiveGamesList({
                 accessibilityRole="button"
                 accessibilityLabel={`${formatCategory(session.category)} game, ${status.label}`}
               >
-                <Card className="py-4">
+                <Card>
                   <View className="flex-row items-center justify-between">
-                    <View className="flex-1 flex-row items-center gap-3">
+                    <View
+                      className={`flex-1 flex-row items-center ${GAPS.tight}`}
+                    >
                       <View
                         className="h-3 w-3 rounded-full"
                         style={{
@@ -245,7 +248,9 @@ export default function ActiveGamesList({
                         </Text>
                       </View>
                     </View>
-                    <View className="border-2 border-border-color bg-bg-secondary px-3 py-1 dark:border-border-color dark:bg-bg-secondary">
+                    <View
+                      className={`border-2 border-border-color bg-bg-secondary ${PADDING.chip} dark:border-border-color dark:bg-bg-secondary`}
+                    >
                       <Text variant="body-xs" bold color={status.color}>
                         {status.label}
                       </Text>

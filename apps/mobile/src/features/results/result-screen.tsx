@@ -16,11 +16,21 @@ import {
   type ScoreRank,
 } from '@youandi/shared';
 
-import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
+import { Button } from '@/components/button';
+import { Card } from '@/components/card';
 import { Skeleton, SkeletonText } from '@/components/loading';
+import { ScreenHeader } from '@/components/screen-header';
 import { Screen } from '@/components/ui/screen';
 import { Text } from '@/components/ui/text';
+import {
+  BACKGROUND,
+  BORDER,
+  GAPS,
+  SCREEN_PADDING,
+  SPACING,
+  TEXT,
+  TYPOGRAPHY,
+} from '@/design-system';
 import { createSession } from '@/lib/api';
 import { env } from '@/lib/env';
 import { useAppFonts } from '@/lib/fonts';
@@ -128,7 +138,7 @@ function ResultHero({
   });
 
   return (
-    <View className="items-center gap-3">
+    <View className={`items-center ${GAPS.tight}`}>
       <View className="h-32 w-40 items-center justify-center">
         <Animated.View
           className="absolute h-24 w-24 rounded-full bg-accent"
@@ -145,7 +155,7 @@ function ResultHero({
       <AnimatedTextInput
         editable={false}
         animatedProps={animatedProps}
-        className="font-display text-display-lg text-text-primary text-center bg-transparent border-0 p-0 m-0 dark:text-text-primary"
+        className={`font-display ${TYPOGRAPHY.displayLg} ${TEXT.primary} text-center bg-transparent border-0 p-0 m-0 dark:text-text-primary`}
         underlineColorAndroid="transparent"
         caretHidden
       />
@@ -206,14 +216,17 @@ export default function ResultScreen({
   if (status === 'error' && error) {
     return (
       <Screen>
-        <View className="flex-1 items-center justify-center gap-6 px-6">
+        <ScreenHeader title="Your Compatibility" />
+        <View
+          className={`flex-1 items-center justify-center ${GAPS.section} ${SCREEN_PADDING.x}`}
+        >
           <Text variant="display-xl" color="primary">
             X_X
           </Text>
           <Text variant="display-md" color="primary" className="text-center">
             {error}
           </Text>
-          <Button title="TRY AGAIN" onPress={retry} />
+          <Button label="TRY AGAIN" onPress={retry} size="md" />
         </View>
       </Screen>
     );
@@ -222,14 +235,17 @@ export default function ResultScreen({
   if (status === 'timeout' && !result) {
     return (
       <Screen>
-        <View className="flex-1 items-center justify-center gap-6 px-6">
+        <ScreenHeader title="Your Compatibility" />
+        <View
+          className={`flex-1 items-center justify-center ${GAPS.section} ${SCREEN_PADDING.x}`}
+        >
           <Text variant="display-xl" color="primary">
             X_X
           </Text>
           <Text variant="display-md" color="primary" className="text-center">
             Still analyzing. Check your connection and try again.
           </Text>
-          <Button title="RETRY" onPress={retry} />
+          <Button label="RETRY" onPress={retry} size="md" />
         </View>
       </Screen>
     );
@@ -241,15 +257,18 @@ export default function ResultScreen({
 
   return (
     <Screen>
+      <ScreenHeader title="Your Compatibility" />
       <View className="flex-1">
         <ScrollView
-          contentContainerClassName="flex-grow gap-6 px-6 py-8 pb-6"
+          contentContainerClassName={`flex-grow ${GAPS.section} ${SCREEN_PADDING.x} ${SCREEN_PADDING.y} pb-6`}
           showsVerticalScrollIndicator={false}
         >
           <ResultHero score={result?.score ?? null} pending={pending} />
           <FadeInStagger index={0}>
-            <View className="items-center gap-2">
-              <View className="border-2 border-border-color bg-bg-card px-3 py-1 dark:border-border-color dark:bg-bg-card">
+            <View className={`items-center ${SPACING.sm}`}>
+              <View
+                className={`border-2 ${BORDER.default} ${BACKGROUND.card} px-3 py-1`}
+              >
                 <Text variant="display-md" color="accent">
                   {rank ? `RANK ${rank}` : 'GENERATING'}
                 </Text>
@@ -269,13 +288,13 @@ export default function ResultScreen({
           {pending && (
             <>
               <Card>
-                <View className="gap-4">
+                <View className={GAPS.default}>
                   <Skeleton width={170} height={26} radius={4} />
                   <SkeletonText lines={4} lastLineWidth="82%" />
                 </View>
               </Card>
               <Card>
-                <View className="gap-4">
+                <View className={GAPS.default}>
                   <Skeleton width={110} height={26} radius={4} />
                   <SkeletonText lines={2} lastLineWidth="60%" />
                 </View>
@@ -286,7 +305,7 @@ export default function ResultScreen({
           {result && (
             <FadeInStagger index={1}>
               <Card>
-                <View className="gap-3">
+                <View className={GAPS.tight}>
                   <Text variant="display-md" color="primary">
                     SYSTEM ANALYSIS
                   </Text>
@@ -301,7 +320,7 @@ export default function ResultScreen({
           {strengths.length > 0 && (
             <FadeInStagger index={2}>
               <Card>
-                <View className="gap-3">
+                <View className={GAPS.tight}>
                   <Text variant="display-md" color="primary">
                     STRENGTHS
                   </Text>
@@ -309,7 +328,7 @@ export default function ResultScreen({
                     {strengths.map((strength, index) => (
                       <View
                         key={`${strength}-${index}`}
-                        className="border-2 border-border-color bg-bg-secondary px-3 py-1 dark:border-border-color dark:bg-bg-secondary"
+                        className={`border-2 ${BORDER.default} ${BACKGROUND.secondary} px-3 py-1`}
                       >
                         <Text variant="body-sm" color="primary">
                           {strength}
@@ -325,7 +344,7 @@ export default function ResultScreen({
           {differences.length > 0 && (
             <FadeInStagger index={3}>
               <Card>
-                <View className="gap-3">
+                <View className={GAPS.tight}>
                   <Text variant="display-md" color="primary">
                     DIFFERENCES
                   </Text>
@@ -333,7 +352,7 @@ export default function ResultScreen({
                     {differences.map((difference, index) => (
                       <View
                         key={`${difference}-${index}`}
-                        className="border-2 border-border-color bg-bg-secondary px-3 py-1 dark:border-border-color dark:bg-bg-secondary"
+                        className={`border-2 ${BORDER.default} ${BACKGROUND.secondary} px-3 py-1`}
                       >
                         <Text variant="body-sm" color="primary">
                           {difference}
@@ -348,9 +367,9 @@ export default function ResultScreen({
         </ScrollView>
 
         {result && (
-          <View className="gap-3 px-6 pb-4 pt-2">
+          <View className={`px-6 pb-4 pt-2 ${GAPS.tight}`}>
             <Button
-              title={
+              label={
                 sharePending
                   ? 'SAVING…'
                   : !fontsLoaded
@@ -360,12 +379,14 @@ export default function ResultScreen({
               onPress={share}
               disabled={sharePending || !fontsLoaded}
               fullWidth
+              size="md"
             />
             <Button
-              title={playPending ? 'CREATING GAME…' : 'PLAY AGAIN'}
+              label={playPending ? 'CREATING GAME…' : 'PLAY AGAIN'}
               onPress={handlePlayAgain}
               disabled={playPending}
               fullWidth
+              size="md"
             />
           </View>
         )}

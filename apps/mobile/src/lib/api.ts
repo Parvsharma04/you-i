@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+import { cacheService } from '../services/cache.service';
+import { useCachedApi } from '../hooks/useCachedApi';
 import { env } from './env';
 import { getOrCreateDeviceId } from './storage';
 import {
@@ -211,13 +213,20 @@ export async function joinSession(
 ): Promise<JoinSessionResponse> {
   joinSessionRequestSchema.parse(body);
   const deviceId = await getOrCreateDeviceId();
-  return request({
+  const response = await request({
     method: 'POST',
     path: '/session/join',
     body,
     deviceId,
     schema: joinSessionResponseSchema,
   });
+
+  // Invalidate session cache after joining as the participant list changes
+  if (response.sessionId) {
+    await cacheService.delete(`session_${response.sessionId}`);
+  }
+
+  return response;
 }
 
 export async function joinSessionByCode(
@@ -227,11 +236,31 @@ export async function joinSessionByCode(
 }
 
 export async function getSession(sessionId: string): Promise<SessionResponse> {
-  return request({
+  const cacheKey = `session_${sessionId}`;
+  const cached = await cacheService.get<SessionResponse>(cacheKey);
+  if (cached) return cached;
+
+  const data = await request({
     method: 'GET',
     path: `/session/${encodeURIComponent(sessionId)}`,
     schema: sessionSchema,
   });
+
+  await cacheService.set(cacheKey, data, 10 * 60 * 1000);
+  return data;
+}
+
+export function useGetSession(sessionId: string) {
+  return useCachedApi(
+    `session_${sessionId}`,
+    () =>
+      request({
+        method: 'GET',
+        path: `/session/${encodeURIComponent(sessionId)}`,
+        schema: sessionSchema,
+      }),
+    { ttl: 10 * 60 * 1000 },
+  );
 }
 
 export async function getSessionState(
@@ -249,11 +278,31 @@ export async function getSessionState(
 export async function getQuestions(
   sessionId: string,
 ): Promise<QuestionsResponse> {
-  return request({
+  const cacheKey = `questions_${sessionId}`;
+  const cached = await cacheService.get<QuestionsResponse>(cacheKey);
+  if (cached) return cached;
+
+  const data = await request({
     method: 'GET',
     path: `/question/${encodeURIComponent(sessionId)}`,
     schema: questionsResponseSchema,
   });
+
+  await cacheService.set(cacheKey, data, 30 * 60 * 1000);
+  return data;
+}
+
+export function useGetQuestions(sessionId: string) {
+  return useCachedApi(
+    `questions_${sessionId}`,
+    () =>
+      request({
+        method: 'GET',
+        path: `/question/${encodeURIComponent(sessionId)}`,
+        schema: questionsResponseSchema,
+      }),
+    { ttl: 30 * 60 * 1000 },
+  );
 }
 
 export async function submitAnswer(
@@ -261,13 +310,19 @@ export async function submitAnswer(
   playerId: string,
 ): Promise<Answer> {
   submitAnswerRequestSchema.parse(body);
-  return request({
+  const result = await request({
     method: 'POST',
     path: '/answer',
     body,
     playerId,
     schema: answerSchema,
   });
+
+  // Invalidate related caches when answering
+  await cacheService.delete(`session_${body.sessionId}`);
+  await cacheService.delete(`answerCount_${body.sessionId}`);
+
+  return result;
 }
 
 export async function getAnswers(sessionId: string): Promise<AnswersResponse> {
@@ -281,11 +336,31 @@ export async function getAnswers(sessionId: string): Promise<AnswersResponse> {
 export async function getAnswerCount(
   sessionId: string,
 ): Promise<AnswerCountResponse> {
-  return request({
+  const cacheKey = `answerCount_${sessionId}`;
+  const cached = await cacheService.get<AnswerCountResponse>(cacheKey);
+  if (cached) return cached;
+
+  const data = await request({
     method: 'GET',
     path: `/answer/${encodeURIComponent(sessionId)}/count`,
     schema: answerCountResponseSchema,
   });
+
+  await cacheService.set(cacheKey, data, 2 * 60 * 1000);
+  return data;
+}
+
+export function useGetAnswerCount(sessionId: string) {
+  return useCachedApi(
+    `answerCount_${sessionId}`,
+    () =>
+      request({
+        method: 'GET',
+        path: `/answer/${encodeURIComponent(sessionId)}/count`,
+        schema: answerCountResponseSchema,
+      }),
+    { ttl: 2 * 60 * 1000 },
+  );
 }
 
 export async function generateResult(
@@ -304,12 +379,33 @@ export async function getResult(
   sessionId: string,
   playerId: string,
 ): Promise<GetResultResponse> {
-  return request({
+  const cacheKey = `result_${sessionId}_${playerId}`;
+  const cached = await cacheService.get<GetResultResponse>(cacheKey);
+  if (cached) return cached;
+
+  const data = await request({
     method: 'GET',
     path: `/result/${encodeURIComponent(sessionId)}`,
     playerId,
     schema: getResultResponseSchema,
   });
+
+  await cacheService.set(cacheKey, data, 60 * 60 * 1000);
+  return data;
+}
+
+export function useGetResult(sessionId: string, playerId: string) {
+  return useCachedApi(
+    `result_${sessionId}_${playerId}`,
+    () =>
+      request({
+        method: 'GET',
+        path: `/result/${encodeURIComponent(sessionId)}`,
+        playerId,
+        schema: getResultResponseSchema,
+      }),
+    { ttl: 60 * 60 * 1000 },
+  );
 }
 
 export async function getMySessions(): Promise<MySessionsResponse> {

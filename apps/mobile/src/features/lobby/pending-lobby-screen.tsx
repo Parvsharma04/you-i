@@ -4,9 +4,10 @@ import { View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { type Category } from '@youandi/shared';
 
-import { Button } from '@/components/ui/button';
+import { Button } from '@/components/button';
 import { Screen } from '@/components/ui/screen';
 import { Text } from '@/components/ui/text';
+import { GAPS, SCREEN_PADDING } from '@/design-system';
 import { createSession } from '@/lib/api';
 import { saveSession } from '@/lib/storage';
 
@@ -83,14 +84,16 @@ function ScreenContent({
       <Text variant="body" color="secondary" className="text-center">
         {error ?? 'You can share the code as soon as the lobby is ready.'}
       </Text>
-      {error ? <Button title="TRY AGAIN" onPress={onRetry} /> : null}
+      {error ? <Button label="TRY AGAIN" onPress={onRetry} size="lg" /> : null}
     </ScreenContentFrame>
   );
 }
 
 function ScreenContentFrame({ children }: { children: ReactNode }) {
   return (
-    <View className="flex-1 items-center justify-center gap-5 px-6">
+    <View
+      className={`flex-1 items-center justify-center ${GAPS.section} ${SCREEN_PADDING.x}`}
+    >
       {children}
     </View>
   );

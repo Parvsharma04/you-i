@@ -2,7 +2,7 @@ import { View } from 'react-native';
 
 import type { Answer, SessionStateResponse } from '@youandi/shared';
 
-import { Card } from '@/components/ui/card';
+import { Card } from '@/components/card';
 import { ProgressPair } from '@/components/ui/progress-pair';
 import { Text } from '@/components/ui/text';
 
@@ -37,7 +37,7 @@ export function FinishedView({
         </Text>
       </View>
 
-      <Card style={{ gap: 14 }}>
+      <Card className="gap-4">
         <Text variant="label" bold color="muted">
           YOUR ANSWERS
         </Text>
@@ -53,7 +53,7 @@ export function FinishedView({
         ))}
       </Card>
 
-      <Card style={{ gap: 14 }}>
+      <Card className="gap-4">
         <Text variant="label" bold color="muted">
           PROGRESS
         </Text>

@@ -2,6 +2,7 @@ import { Keyboard, TextInput, View } from 'react-native';
 import { KeyboardToolbar } from 'react-native-keyboard-controller';
 import { useState } from 'react';
 
+import { Card } from '@/components/card';
 import { OptionTile } from '@/components/ui/option-tile';
 import { Text } from '@/components/ui/text';
 import { MAX_TEXT_LENGTH } from '@/features/quiz/use-quiz';
@@ -31,7 +32,7 @@ export function QuestionCard({
 }: QuestionCardProps) {
   const [inputHeight, setInputHeight] = useState(120);
   return (
-    <View className="gap-6 bg-bg-card dark:bg-bg-card">
+    <Card noPadding className="gap-6">
       <View className="relative overflow-hidden">
         <Text variant="display-md" color="primary" className="leading-snug">
           {question.text}
@@ -89,6 +90,6 @@ export function QuestionCard({
           ) : null}
         </View>
       )}
-    </View>
+    </Card>
   );
 }

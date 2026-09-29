@@ -1,6 +1,6 @@
 import { View } from 'react-native';
 
-import { Card } from '@/components/ui/card';
+import { Card } from '@/components/card';
 import { Text } from '@/components/ui/text';
 import { ProgressBar } from './progress-bar';
 
@@ -32,7 +32,7 @@ export function WaitingView({
 
   return (
     <View className="flex-1 items-center justify-center gap-6 px-6 py-8">
-      <Card className="w-full items-center gap-5">
+      <Card className="w-full items-center gap-6">
         <Text variant="display-xl" color="accent">
           ^__^
         </Text>

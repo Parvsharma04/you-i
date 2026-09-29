@@ -11,10 +11,18 @@ import Animated, {
 } from 'react-native-reanimated';
 import { type Category } from '@youandi/shared';
 
-import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
+import { Button } from '@/components/button';
+import { Card } from '@/components/card';
+import { ScreenHeader } from '@/components/screen-header';
 import { Screen } from '@/components/ui/screen';
 import { Text } from '@/components/ui/text';
+import {
+  GAPS,
+  PADDING,
+  SCREEN_PADDING,
+  SECTION_MARGIN,
+  SPACING,
+} from '@/design-system';
 import { env } from '@/lib/env';
 import { useAccessibilityReduceMotion, useTheme } from '@/theme';
 import {
@@ -110,11 +118,17 @@ export default function LobbyScreen() {
   if (!sessionId) {
     return (
       <Screen>
-        <View className="flex-1 items-center justify-center px-6">
+        <View
+          className={`flex-1 items-center justify-center ${SCREEN_PADDING.x}`}
+        >
           <Text variant="display-md" color="primary">
             Missing game link
           </Text>
-          <Button title="START NEW GAME" onPress={() => router.replace('/')} />
+          <Button
+            label="START NEW GAME"
+            onPress={() => router.replace('/')}
+            size="lg"
+          />
         </View>
       </Screen>
     );
@@ -122,11 +136,14 @@ export default function LobbyScreen() {
 
   return (
     <Screen>
+      <ScreenHeader title="Waiting for Partner..." />
       <ScrollView className="flex-1">
-        <View className="flex-grow justify-center px-6 py-8">
+        <View
+          className={`flex-grow justify-center ${SCREEN_PADDING.x} ${SCREEN_PADDING.y}`}
+        >
           {showLoading && (
-            <View className="gap-6">
-              <View className="items-center gap-3">
+            <View className={GAPS.section}>
+              <View className={`items-center ${GAPS.tight}`}>
                 <Skeleton width={150} height={24} radius={4} />
                 <Skeleton width={230} height={42} radius={4} />
                 <SkeletonText
@@ -136,7 +153,7 @@ export default function LobbyScreen() {
                 />
               </View>
               <Card>
-                <View className="gap-4">
+                <View className={GAPS.default}>
                   <Skeleton width={110} height={18} radius={4} />
                   <Skeleton width="100%" height={72} radius={4} />
                   <SkeletonText lines={2} lastLineWidth="62%" />
@@ -146,7 +163,7 @@ export default function LobbyScreen() {
           )}
 
           {status === 'needsCode' && (
-            <View className="items-center gap-6">
+            <View className={`items-center ${GAPS.section}`}>
               <Text
                 variant="display-md"
                 color="primary"
@@ -157,12 +174,16 @@ export default function LobbyScreen() {
               <Text variant="body" color="secondary" className="text-center">
                 Joining a game now requires a 6-character room code.
               </Text>
-              <Button title="GO HOME" onPress={() => router.replace('/')} />
+              <Button
+                label="GO HOME"
+                onPress={() => router.replace('/')}
+                size="lg"
+              />
             </View>
           )}
 
           {status === 'error' && lobbyError && (
-            <View className="items-center gap-6">
+            <View className={`items-center ${GAPS.section}`}>
               <Text variant="display-xl" color="primary">
                 X_X
               </Text>
@@ -174,16 +195,21 @@ export default function LobbyScreen() {
                 {lobbyError.message}
               </Text>
               <Button
-                title={lobbyError.actionLabel}
+                label={lobbyError.actionLabel}
                 onPress={handleErrorAction}
+                size="lg"
               />
             </View>
           )}
 
           {(status === 'host' || status === 'waiting') && (
             <>
-              <View className="mb-8 items-center gap-3">
-                <View className="border-2 border-border-color bg-bg-card px-3 py-1 dark:border-border-color dark:bg-bg-card">
+              <View
+                className={`${SECTION_MARGIN.beforeAction} items-center ${GAPS.tight}`}
+              >
+                <View
+                  className={`border-2 border-border-color bg-bg-card ${PADDING.chip} dark:border-border-color dark:bg-bg-card`}
+                >
                   <Text variant="body-sm" bold color="primary">
                     MODE: {category ? formatCategory(category) : '…'}
                   </Text>
@@ -205,13 +231,15 @@ export default function LobbyScreen() {
               </View>
 
               {status === 'host' && (
-                <Card shadowSize="md" className="mb-8">
-                  <View className="gap-4">
+                <Card className={SECTION_MARGIN.beforeAction}>
+                  <View className={GAPS.default}>
                     <Text variant="body-sm" bold color="primary">
                       ROOM CODE
                     </Text>
                     <Pressable onPress={handleCopyCode}>
-                      <View className="border-3 border-border-color bg-bg-secondary p-4 active:opacity-70 dark:border-border-color dark:bg-bg-secondary">
+                      <View
+                        className={`border-3 border-border-color bg-bg-secondary ${PADDING.control} active:opacity-70 dark:border-border-color dark:bg-bg-secondary`}
+                      >
                         <Text
                           variant="mono"
                           color="primary"
@@ -241,24 +269,27 @@ export default function LobbyScreen() {
                             : 'Tap code to copy'}
                     </Text>
 
-                    <View className="gap-3">
+                    <View className={GAPS.tight}>
                       <Button
-                        title="SHARE CODE"
+                        label="SHARE CODE"
                         onPress={handleShare}
                         disabled={!roomCode}
                         fullWidth
+                        size="lg"
                       />
                       <Button
-                        title={isRegenerating ? '…' : 'NEW CODE'}
+                        label={isRegenerating ? '…' : 'NEW CODE'}
                         onPress={handleRegenerate}
                         disabled={isRegenerating}
                         fullWidth
+                        size="lg"
                       />
                       <Button
-                        title={isCancelling ? '…' : 'CANCEL LOBBY'}
+                        label={isCancelling ? '…' : 'CANCEL LOBBY'}
                         onPress={handleCancel}
                         disabled={isCancelling}
                         fullWidth
+                        size="lg"
                       />
                     </View>
                   </View>
@@ -266,7 +297,9 @@ export default function LobbyScreen() {
               )}
 
               {status === 'host' && roomCode && (
-                <Card className="mb-8 items-center gap-4">
+                <Card
+                  className={`${SECTION_MARGIN.beforeAction} items-center ${GAPS.default}`}
+                >
                   <View
                     accessible
                     accessibilityLabel="QR code for joining this room"
@@ -288,8 +321,8 @@ export default function LobbyScreen() {
                 </Card>
               )}
 
-              <View className="items-center gap-3">
-                <View className="flex-row items-center gap-2">
+              <View className={`items-center ${GAPS.tight}`}>
+                <View className={`flex-row items-center ${SPACING.sm}`}>
                   <PresenceDot />
                   <Text variant="body-sm" color="primary" bold>
                     {status === 'host'

@@ -2,9 +2,10 @@ import { useCallback, useEffect, useState } from 'react';
 import { RefreshControl, ScrollView, View } from 'react-native';
 import { useRouter } from 'expo-router';
 
-import { Button } from '@/components/ui/button';
+import { Button } from '@/components/button';
 import { Screen } from '@/components/ui/screen';
 import { Text } from '@/components/ui/text';
+import { GAPS, SECTION_MARGIN, SCREEN_PADDING } from '@/design-system';
 import { useTheme } from '@/theme';
 import ActiveGamesList from './active-games-list';
 
@@ -37,34 +38,49 @@ export default function HomeScreen() {
           />
         }
       >
-        <View className="flex-grow px-6 py-8">
-          <Text variant="title" bold color="primary" className="mb-10">
+        <View className={`flex-grow ${SCREEN_PADDING.x} ${SCREEN_PADDING.y}`}>
+          <Text
+            variant="title"
+            bold
+            color="primary"
+            className={SECTION_MARGIN.heading}
+          >
             You & I
           </Text>
-          <Text variant="display-xl" color="primary" className="mb-8">
+          <Text
+            variant="display-xl"
+            color="primary"
+            className={SECTION_MARGIN.beforeAction}
+          >
             Find out how in sync you are.
           </Text>
 
-          <View className="flex-row gap-3">
+          <View className={`flex-row ${GAPS.tight}`}>
             <View className="flex-[1.25]">
               <Button
-                title="START A GAME"
+                label="START A GAME"
                 onPress={() => router.push('/create')}
                 fullWidth
+                size="lg"
               />
             </View>
             <View className="flex-1">
               <Button
-                title="JOIN"
+                label="JOIN"
                 variant="secondary"
                 onPress={() => router.push('/join')}
                 fullWidth
+                size="lg"
               />
             </View>
           </View>
 
           {error && (
-            <Text variant="body-sm" color="accent" className="mt-4 text-center">
+            <Text
+              variant="body-sm"
+              color="accent"
+              className={`${SECTION_MARGIN.message} text-center`}
+            >
               {error}
             </Text>
           )}

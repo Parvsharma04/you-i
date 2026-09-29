@@ -1,6 +1,6 @@
 import { View } from 'react-native';
 
-import { Button } from '@/components/ui/button';
+import { Button } from '@/components/button';
 import { Text } from '@/components/ui/text';
 
 type ErrorViewProps = {
@@ -17,7 +17,7 @@ export function ErrorView({ message, onRetry }: ErrorViewProps) {
       <Text variant="display-md" color="primary" className="text-center">
         {message}
       </Text>
-      <Button title="TRY AGAIN" onPress={onRetry} />
+      <Button label="TRY AGAIN" onPress={onRetry} variant="primary" size="md" />
     </View>
   );
 }
