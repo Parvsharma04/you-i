@@ -21,11 +21,9 @@
 
 ---
 
-**You & I** asks two people the same handful of questions — about love, friendship, deep talk, fun, or something spicier — and turns the answers into an honest compatibility score, a written read on where you align, and where you don't.
+**You & I** asks two people the same handful of questions — about love, friendship, deep talk, fun, or spicy — and turns their answers into an honest compatibility score, a written AI read on where they align, and where they diverge.
 
-It started as a Next.js web app. It's now being rebuilt as a native app on **Expo**, with the same NestJS/PostgreSQL backend underneath. This repo is the monorepo for all of it.
-
-> **A note on the screenshots below:** the mobile app is mid-migration. What you're seeing is the current design direction — real typography, real layout, real interaction states — rendered as mockups while the Expo build catches up. The [status](#project-status) section says exactly what's built versus what's next.
+The project originated as a Next.js web application and has evolved into an **Expo (React Native)** native application powered by the same NestJS and PostgreSQL backend.
 
 <br>
 
@@ -38,9 +36,9 @@ It started as a Next.js web app. It's now being rebuilt as a native app on **Exp
 <td width="33%"><img src=".github/readme/screenshot-lobby.png" alt="Lobby screen — room code, QR share, waiting for partner"></td>
 </tr>
 <tr>
-<td align="center"><sub><b>Home</b> — pick up a game in progress or start a new one</sub></td>
-<td align="center"><sub><b>Join</b> — paste or type a partner's room code</sub></td>
-<td align="center"><sub><b>Lobby</b> — share the code, or let them scan it</sub></td>
+<td align="center"><sub><b>Home</b> — pick up an active game or start a new one</sub></td>
+<td align="center"><sub><b>Join</b> — enter or paste a 6-character room code</sub></td>
+<td align="center"><sub><b>Lobby</b> — share the code, copy the link, or scan QR</sub></td>
 </tr>
 <tr>
 <td width="33%"><img src=".github/readme/screenshot-quiz.png" alt="Quiz screen — multiple choice question with dual progress bars"></td>
@@ -48,63 +46,63 @@ It started as a Next.js web app. It's now being rebuilt as a native app on **Exp
 <td width="33%"><img src=".github/readme/screenshot-spicy.png" alt="Spicy category — the app in its dark theme"></td>
 </tr>
 <tr>
-<td align="center"><sub><b>Quiz</b> — your progress and theirs, side by side</sub></td>
-<td align="center"><sub><b>Results</b> — the score is how much your circles overlap</sub></td>
-<td align="center"><sub><b>Spicy</b> — a different register gets a different theme</sub></td>
+<td align="center"><sub><b>Quiz</b> — real-time progress pair for both players</sub></td>
+<td align="center"><sub><b>Results</b> — interactive Venn overlap with score and summary</sub></td>
+<td align="center"><sub><b>Spicy</b> — contextual dark palette for spicy quizzes</sub></td>
 </tr>
 </table>
 
 ## Features
 
-- **Five categories** — love, friendship, deep talk, fun, and spicy, each generating its own question set
-- **AI-generated questions**, with a hardcoded fallback set so a provider outage never blocks a game
-- **Two ways to connect** — share a link, or read a room code out loud and have your partner type or scan it in
-- **Live progress, private answers** — you can see that your partner answered, never what they picked, until the result is ready
-- **Survives real mobile conditions** — backgrounding, dropped connections, and offline answer queues all resolve by re-syncing with the server, never by trusting a stale socket
-- **A compatibility report**, not just a number — a score, a short written read, and the specific things you agree and disagree on
-- **A shareable result card** for posting the score elsewhere
+- **Five core categories** — Love, Friendship, Deep Talk, Fun, and Spicy, each prompting distinct questions and custom themes.
+- **AI question & result generation** — Powered by Google Gemini (default) or Groq, with resilient fallback generators if the LLM provider fails or times out.
+- **Two connection modes** — Remote multiplayer via short 6-character room codes / deep links, or local **Pass & Play** on a single device.
+- **Real-time synchronized progress** — Dual progress tracking via Socket.IO; answers remain private until both players finish and results are calculated.
+- **Asynchronous result calculation** — The backend processes results in the background (`202 Accepted`) and delivers updates over WebSockets and REST polling.
+- **Single-request rehydration** — Full `/session/:id/state` endpoint allows mobile and web clients to rehydrate state seamlessly after backgrounding, screen locks, or dropped connections.
+- **Shareable result cards** — Exportable result graphics generated on-device with native share sheet integration (`react-native-view-shot` + `expo-sharing`).
+- **Secure credential storage** — Bearer player IDs and device identity persist via `expo-secure-store` on native devices, preventing leaks in URLs or unencrypted local storage.
+- **Active games dashboard** — Resume ongoing games or review completed sessions tracked by device identity (`GET /sessions/mine`).
 
 ## Tech stack
 
 ```mermaid
 graph TD
-    Mobile["apps/mobile — Expo + React Native"]
-    Web["apps/web — Next.js (share links, landing)"]
-    API["apps/api — NestJS"]
-    DB[("PostgreSQL + Prisma")]
-    LLM["LLM provider — question & result generation"]
-    Shared["packages/shared — zod schemas, socket contracts, enums"]
+    Mobile["apps/mobile<br/>(Expo SDK 57 + React Native 0.86)"]
+    Web["apps/web<br/>(Next.js 16 + React 19)"]
+    API["apps/api<br/>(NestJS 11 + Express)"]
+    DB[("PostgreSQL + Prisma 5")]
+    LLM["LLM Service<br/>(Gemini / Groq)"]
+    Shared["@youandi/shared<br/>(Zod schemas, types, contracts)"]
 
-    Mobile -- REST + WebSocket --> API
-    Web -- REST + WebSocket --> API
-    API -- Prisma --> DB
-    API -- generate --> LLM
+    Mobile -- REST + Socket.IO --> API
+    Web -- REST + Socket.IO --> API
+    API -- Prisma ORM --> DB
+    API -- Prompts --> LLM
     Shared -.-> Mobile
     Shared -.-> Web
     Shared -.-> API
 ```
 
-The backend is the source of truth for everything. Sockets broadcast live hints — someone joined, someone answered, results are ready — but every client reconciles that against a REST call rather than trusting the socket event on its own. That one rule is why the app can survive a phone locking mid-quiz.
+## Architecture
 
-## Architecture at a glance
-
-- **Server authoritative.** All game state — session, players, answers, results — lives in Postgres. The UI can act optimistically, but it always resolves against the server.
-- **Shared contract package.** `packages/shared` holds every request/response schema and socket payload as Zod schemas, imported by both the API and every client. A shape change that isn't reflected everywhere fails at the type level, not at runtime on someone's phone.
-- **Sockets are a hint layer, not state.** A dropped connection is not a lost game. Every client re-fetches from REST on reconnect or foreground rather than assuming it caught every event.
-- **Room codes are claim tickets, not identities.** A session's real identity is a UUID. The six-character room code is nullable, unique, and only valid while a lobby is waiting — it's cleared the moment someone joins or it expires, which keeps the guessable code space small.
-- **Native-safe storage only.** The mobile client never touches `localStorage`; player identity and session records live in `expo-secure-store`.
-
-A fuller write-up of the schema, the API surface, and the socket event contract lives in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
+- **Server-authoritative state:** PostgreSQL is the single source of truth for all sessions, players, questions, answers, and results. Clients never decide game state transitions locally.
+- **Shared contract package (`@youandi/shared`):** Request/response bodies, route parameters, error codes, and Socket.IO payloads are defined as Zod schemas and shared across all apps.
+- **Sockets as a hint layer:** Socket.IO events (`playerJoined`, `answerSubmitted`, `playerComplete`, `resultsReady`) signal clients to update or rehydrate. Clients re-fetch authoritative state over REST upon reconnecting or foregrounding.
+- **Device & bearer identity:**
+  - Authenticated endpoints validate `x-player-id` using NestJS `PlayerGuard`.
+  - Client devices provide `x-device-id` to associate sessions and power the active games list (`GET /sessions/mine`).
+- **Ephemeral room codes:** Six-character room codes act as temporary claim tickets with 30-minute expiration windows, rate-limited join protection, and periodic cleanup via scheduled cron tasks.
 
 ## Monorepo structure
 
 ```text
 apps/
-  api/            NestJS backend — the authority for all game state
-  mobile/         Expo app (React Native) — the primary client going forward
-  web/            Next.js app — share-link landing page, legacy browser UI
+  api/            NestJS 11 backend, Prisma ORM, Socket.IO gateway, LLM service
+  mobile/         Expo SDK 57 native mobile application (iOS & Android)
+  web/            Next.js 16 web application (share links, browser player)
 packages/
-  shared/         Zod schemas, TypeScript types, socket event contracts
+  shared/         Shared TypeScript types, Zod schemas, and WebSocket contracts
 ```
 
 ## Getting started
@@ -113,90 +111,140 @@ packages/
 
 - [Node.js](https://nodejs.org) 22 or later
 - [pnpm](https://pnpm.io) (`npm install -g pnpm`)
-- A PostgreSQL database (local, Docker, or hosted)
-- An API key for your chosen LLM provider (Gemini or Groq)
-- For the mobile app: [Expo Go](https://expo.dev/go) on your phone, or Android Studio / Xcode for a simulator
+- PostgreSQL instance (local, Docker, or hosted)
+- LLM API key ([Google AI Studio](https://aistudio.google.com/) for Gemini, or [Groq](https://groq.com/))
+- For mobile development: [Expo Go](https://expo.dev/go) or Android Studio / Xcode simulators
 
-### Setup
+### 1. Installation
 
 ```bash
-git clone https://github.com/your-org/you-and-i.git
-cd you-and-i
+git clone https://github.com/Parvsharma04/you-i.git
+cd you-i
 pnpm install
-
-# copy and fill in environment files
-cp apps/api/.env.example apps/api/.env
-cp apps/mobile/.env.example apps/mobile/.env
-
-# apply the database schema
-pnpm --filter api db:migrate
 ```
 
-### Run it
+### 2. Environment configuration
+
+Copy the example environment files:
 
 ```bash
-# backend — http://localhost:3000
-pnpm --filter api dev
+cp apps/api/.env.example apps/api/.env
+```
 
-# web client — http://localhost:3001
-pnpm --filter web dev
+Create `apps/mobile/.env` (and optionally `apps/web/.env.local`):
 
-# mobile client — scan the QR with Expo Go
-pnpm --filter mobile start
+```bash
+# apps/mobile/.env
+EXPO_PUBLIC_API_URL=http://localhost:8081
+EXPO_PUBLIC_WS_URL=http://localhost:8081
+EXPO_PUBLIC_WEB_URL=http://localhost:3000
+```
+
+> **Note for physical mobile devices running Expo Go:** Replace `localhost` in `apps/mobile/.env` with your host machine's LAN IP address (e.g. `http://192.168.1.X:8081`), as `localhost` inside a mobile device refers to the device itself.
+
+### 3. Database migrations
+
+```bash
+pnpm db:migrate
+```
+
+### 4. Running the applications
+
+Run all applications concurrently:
+
+```bash
+pnpm dev
+```
+
+Or run individual apps:
+
+```bash
+# Backend API — http://localhost:8081
+pnpm --filter @youandi/api dev
+
+# Web client — http://localhost:3000
+pnpm --filter @youandi/web dev
+
+# Mobile client — Expo dev server on port 8082
+pnpm --filter @youandi/mobile start
 ```
 
 ## Environment variables
 
-<table>
-<tr><th>Variable</th><th>Where</th><th>Purpose</th></tr>
-<tr><td><code>DATABASE_URL</code></td><td>api</td><td>Postgres connection string</td></tr>
-<tr><td><code>GEMINI_API_KEY</code> / <code>GROQ_API_KEY</code></td><td>api</td><td>LLM provider credentials — question and result generation</td></tr>
-<tr><td><code>FRONTEND_URL</code></td><td>api</td><td>Allowed CORS origin(s), comma-separated</td></tr>
-<tr><td><code>EXPO_PUBLIC_API_URL</code></td><td>mobile, web</td><td>Base URL of the API</td></tr>
-<tr><td><code>EXPO_PUBLIC_WS_URL</code></td><td>mobile, web</td><td>WebSocket URL for the gateway</td></tr>
-</table>
+### `apps/api/.env`
 
-`EXPO_PUBLIC_*` values are compiled into the shipped app bundle and are readable by anyone — never put a secret behind that prefix.
+| Variable | Required | Default | Description |
+|---|---|---|---|
+| `DATABASE_URL` | Yes | — | PostgreSQL connection string |
+| `LLM_PROVIDER` | No | `gemini` | AI provider: `gemini` or `groq` |
+| `GEMINI_API_KEY` | If provider is Gemini | — | Google Gemini API key |
+| `GROQ_API_KEY` | If provider is Groq | — | Groq API key |
+| `PORT` | No | `8081` | HTTP server port |
+| `HOST` | No | `0.0.0.0` | Server network bind address |
+| `ALLOWED_ORIGINS` | No | `http://localhost:3000` | Allowed browser origins for CORS (comma-separated) |
+| `FRONTEND_URL` | No | `http://localhost:3000` | Fallback CORS origin if `ALLOWED_ORIGINS` is unset |
+| `ALLOW_LEGACY_SESSION_ID_JOIN_BODY` | No | `true` | Permits legacy join body payloads during client upgrades |
 
-## Scripts
+### `apps/mobile/.env`
 
-<table>
-<tr><th>Command</th><th>Runs</th></tr>
-<tr><td><code>pnpm dev</code></td><td>All apps in parallel</td></tr>
-<tr><td><code>pnpm build</code></td><td>Build every workspace</td></tr>
-<tr><td><code>pnpm typecheck</code></td><td>TypeScript across the whole monorepo</td></tr>
-<tr><td><code>pnpm lint</code></td><td>ESLint across the whole monorepo</td></tr>
-<tr><td><code>pnpm --filter api db:migrate</code></td><td>Apply Prisma migrations</td></tr>
-<tr><td><code>pnpm --filter api db:studio</code></td><td>Open Prisma Studio</td></tr>
-<tr><td><code>pnpm --filter mobile start</code></td><td>Expo dev server</td></tr>
-<tr><td><code>pnpm --filter mobile android</code></td><td>Open in an Android emulator</td></tr>
-</table>
+| Variable | Required | Default | Description |
+|---|---|---|---|
+| `EXPO_PUBLIC_API_URL` | No | `https://you-i.onrender.com` | Backend REST API base URL |
+| `EXPO_PUBLIC_WS_URL` | No | Value of `EXPO_PUBLIC_API_URL` | Backend WebSocket / Socket.IO URL |
+| `EXPO_PUBLIC_WEB_URL` | No | `https://you-i.onrender.com` | Base URL used to format invitation web links |
+
+### `apps/web/.env.local`
+
+| Variable | Required | Default | Description |
+|---|---|---|---|
+| `NEXT_PUBLIC_API_URL` | No | `http://localhost:8081` | Backend REST and Socket.IO gateway URL |
+
+## Workspace scripts
+
+| Command | Description |
+|---|---|
+| `pnpm dev` | Run all workspace apps in parallel |
+| `pnpm build` | Build shared package and all apps |
+| `pnpm typecheck` | Run `tsc --noEmit` across all workspaces |
+| `pnpm lint` | Run ESLint across apps |
+| `pnpm db:migrate` | Run Prisma database migrations (`@youandi/api`) |
+| `pnpm --filter @youandi/api test` | Run backend Jest test suite |
+| `pnpm --filter @youandi/mobile android` | Start Expo dev server targeted at Android emulator/device |
+| `pnpm --filter @youandi/mobile ios` | Start Expo dev server targeted at iOS simulator |
 
 ## Project status
 
-| Area | Status |
-|---|---|
-| Web app (Next.js) | Shipped — share links, full game loop |
-| Backend hardening for mobile | In progress — rehydration endpoint, async result generation, room codes |
-| Expo app | In progress — design direction locked, screens in build |
-| Room code join flow | Designed, not yet implemented |
-| Pass-and-play (one device, two players) | Designed, not yet implemented |
-| Play Store submission | Not started — pending closed testing |
+| Area / Feature | Status | Notes |
+|---|---|---|
+| Backend API & Sockets | ✅ Implemented | NestJS 11, Prisma 5, session state rehydration, background result generation, health metrics |
+| AI Integration & Fallbacks | ✅ Implemented | Gemini & Groq providers with resilient fallback quiz and result generators |
+| Ephemeral Room Codes | ✅ Implemented | 6-character normalized codes, join rate limits, and 5-minute automated expiration cron |
+| Mobile Navigation & Screens | ✅ Implemented | Expo Router: Home, Create, Lobby, Join, Quiz, Results, and Pass & Play |
+| Pass & Play (Local Multiplayer) | ✅ Implemented | Two-player turn-based flow on a single device with secure local storage |
+| Deep Linking & QR Codes | ✅ Implemented | Universal links (`/j/[code]`, `/lobby/[sessionId]`) and in-app QR code generation |
+| Mobile State Rehydration | ✅ Implemented | Seamless recovery after backgrounding, network switches, or force-quits |
+| Result Sharing | ✅ Implemented | On-device PNG capture via `react-native-view-shot` and native share sheet via `expo-sharing` |
+| Web Application | ✅ Implemented | Next.js browser client for game loops, active games list, and invitation redirects |
+| Production App Store Release | 🚧 In progress | Google Play metadata and asset preparation in progress (`apps/mobile/STORE-ASSETS.md`) |
 
 ## Contributing
 
-Issues and PRs are welcome. Before opening a PR:
-
-```bash
-pnpm typecheck
-pnpm lint
-```
-
-For mobile changes, also run `npx expo-doctor` inside `apps/mobile`.
+1. Verify TypeScript types:
+   ```bash
+   pnpm typecheck
+   ```
+2. Run backend tests:
+   ```bash
+   pnpm --filter @youandi/api test
+   ```
+3. For mobile modifications, verify dependencies with Expo:
+   ```bash
+   cd apps/mobile && npx expo-doctor
+   ```
 
 ## License
 
-[MIT](LICENSE) — confirm this matches your actual license before publishing.
+This project is licensed under the [MIT License](apps/mobile/LICENSE).
 
 <br>
 
