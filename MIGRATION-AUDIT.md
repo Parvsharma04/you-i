@@ -149,12 +149,10 @@ The design is intentionally anti-rounded: `rounded-none` is used overwhelmingly.
 | Server → Client | `playerJoined` | `{ playerId: string }` | Server is authoritative for room membership broadcast | `apps/api/src/gateway/quiz.gateway.ts` |
 | Server → Client | `answerSubmitted` | `{ playerId: string, questionId: number, answerIndex: number }` | This is a hint/UI signal only; the canonical answer state is REST/DB | `apps/api/src/gateway/quiz.gateway.ts` |
 | Server → Client | `playerComplete` | `{ playerId: string }` | Hint/UI signal only; not authoritative for result generation or game completion | `apps/api/src/gateway/quiz.gateway.ts` |
-| Server → Client | `resultsReady` | `{ score: number, summary: string, strengths: string[], differences: string[] }` | This is the server result payload; currently dead code in the live implementation | `packages/shared/src/socket.ts`, `apps/api/src/gateway/quiz.gateway.ts`, `apps/api/src/result/result.service.ts` |
 
 Notes:
-- The client registers `on('answerSubmitted', ...)` and `on('playerComplete', ...)` but does not subscribe to `resultsReady`.
-- The server calls `this.quizGateway.emitResultsReady(sessionId, persisted);` in `ResultService.generateInBackground`, but the app does not listen for it anywhere in the current web client.
-- The architecture doc describes `resultsReady` as a live event; in code it is not a current user-visible signal, only a dead method stub in the gateway plus a typed schema in `packages/shared/src/socket.ts`.
+- The client registers `on('answerSubmitted', ...)` and `on('playerComplete', ...)`.
+- Result availability is checked and polled via REST.
 
 ## 6. DRIFT
 
@@ -171,7 +169,7 @@ Notes:
 | 9. Architecture says `GET /result/:sessionId` returns a raw result or `null`; actual code returns `ResultStatusResponse` | The `ResultController` and `ResultService.getResult` both return `{ status, data }`, not the bare result object. | The documented REST contract is stale and the client logic is expecting the newer status wrapper. |
 | 10. Architecture says `POST /result/generate/:sessionId` returns the generated result immediately | Actual `ResultController.generate` writes `res.status(alreadyExists ? 200 : 202)` and returns a wrap object. `requestGeneration` returns `status: 'pending'` while generation runs in the background. | The request/response contract is an async orchestration model, not a synchronous “generate and return immediately” model. |
 | 11. Architecture says the app creates the result and updates `Session.status` to `completed` on the same request path | Actual generation is fire-and-forget: `requestGeneration()` triggers `generateInBackground()` in the background and responds immediately with `pending`; the `session` update happens later in background generation. | The lifecycle is async and not the one documented in the architecture. |
-| 12. Architecture says the socket emits `resultsReady` and clients listen for it | Actual `QuizGateway.emitResultsReady(...)` exists, but the web client never subscribes to it. `apps/web/src/lib/useSocket.ts` `on` helper is used only for `answerSubmitted` and `playerComplete`. | This event is effectively dead code. The app only gets results via REST polling. |
+| 12. Result polling vs sockets | The app gets results via REST polling; results are generated asynchronously and clients poll until ready. | Sockets are hints; REST is authoritative. |
 | 13. Architecture says there is no auth/guarding around API routes | The real backend uses `PlayerGuard` and requires `X-Player-Id` for result and answer routes; session creation/join require `x-device-id`. | The runtime API surface is more locked down than the docs claim. |
 | 14. The doc describes a session as `waiting -> active -> completed` flow only | Real `Session` status enum includes `waiting | active | completed | expired | abandoned` and the service uses `SESSION_STATUSES.EXPIRED` / `ABANDONED` in `SessionService.findMine` and `classifyJoinFailure`. | The lifecycle is broader and stateful than the docs capture. |
 | 15. Architecture says question count is “usually 5-10”, but the actual API allows 5 to 20 and the UI exposes 5/10/15/20 | `createSessionRequestSchema` uses `z.number().int().min(5).max(20)`, and the home screen options are 5, 10, 15, 20. | The architecture document under-specifies the actual production behavior. |

@@ -4,7 +4,6 @@ import type {
   AnswerSubmittedPayload,
   PlayerCompletePayload,
   PlayerJoinedPayload,
-  ResultsReadyPayload,
 } from '@youandi/shared';
 
 import type { SessionStateResponse } from '@youandi/shared';
@@ -35,7 +34,6 @@ export type GameSocketOptions = {
   onPartnerJoined?: (payload: PlayerJoinedPayload) => void;
   onAnswerSubmitted?: (payload: AnswerSubmittedPayload) => void;
   onPlayerComplete?: (payload: PlayerCompletePayload) => void;
-  onResultsReady?: (payload: ResultsReadyPayload) => void;
 };
 
 export type GameSocketResult = {
@@ -100,12 +98,6 @@ export function useGameSocket(
         case 'playerComplete':
           optionsRef.current.onPlayerComplete?.(
             entry.payload as PlayerCompletePayload,
-          );
-          refreshState();
-          break;
-        case 'resultsReady':
-          optionsRef.current.onResultsReady?.(
-            entry.payload as ResultsReadyPayload,
           );
           refreshState();
           break;

@@ -2,7 +2,6 @@ import type {
   AnswerSubmittedPayload,
   PlayerCompletePayload,
   PlayerJoinedPayload,
-  ResultsReadyPayload,
 } from '@youandi/shared';
 
 import { maskPlayerId } from './mask-player-id';
@@ -77,10 +76,6 @@ socket.on('playerComplete', (payload: PlayerCompletePayload) => {
   state.logEvent('playerComplete', {
     playerId: maskPlayerId(payload.playerId),
   });
-});
-
-socket.on('resultsReady', (payload: ResultsReadyPayload) => {
-  state.logEvent('resultsReady', payload);
 });
 
 export const acquireSocketLifecycle = lifecycle.acquireSocketLifecycle;

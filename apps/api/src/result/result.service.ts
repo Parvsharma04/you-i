@@ -2,7 +2,6 @@ import { Injectable, BadRequestException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { LlmService } from '../llm/llm.service';
-import { QuizGateway } from '../gateway/quiz.gateway';
 import {
   GenerateResultResponse,
   Result,
@@ -24,7 +23,6 @@ export class ResultService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly llmService: LlmService,
-    private readonly quizGateway: QuizGateway,
   ) {}
 
   /**
@@ -181,7 +179,7 @@ IMPORTANT: Respond ONLY with valid JSON in this exact format, no other text:
 
   /**
    * Does the actual work: LLM call (with timeout), fallback on failure,
-   * persistence, session status update, and the resultsReady socket emit.
+   * persistence, and session status update.
    * Runs detached from the HTTP request/response cycle.
    */
   private async generateInBackground(sessionId: string): Promise<void> {
@@ -262,8 +260,6 @@ IMPORTANT: Respond ONLY with valid JSON in this exact format, no other text:
         where: { id: sessionId },
         data: { status: 'completed' },
       });
-
-      this.quizGateway.emitResultsReady(sessionId, persisted);
     } finally {
       const durationMs = Date.now() - startedAt;
       console.log(

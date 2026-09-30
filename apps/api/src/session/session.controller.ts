@@ -76,6 +76,14 @@ export class SessionController {
 
   // Must be declared before the `:id` route below so Nest doesn't try to
   // match "state" as a session id.
+  //
+  // Fields whose values differ depending on WHICH player is asking:
+  // - `you.playerId`: identity of the requesting player
+  // - `you.role`: role of the requesting player ('host' vs 'guest')
+  // - `you.answeredQuestionIds`: IDs of questions answered by the requesting player
+  // - `partner.answeredQuestionIds`: IDs of questions answered by the other player
+  // - `partner.complete`: whether the partner has completed all questions (differs when one finishes first)
+  // (Note: `partner.joined` is false before the guest joins, visible only to host since guests cannot query state prior to joining. Raw answer choices/values are excluded for both players.)
   @Get(':sessionId/state')
   @UseGuards(PlayerGuard)
   async getState(

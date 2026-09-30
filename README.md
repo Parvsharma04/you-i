@@ -88,7 +88,7 @@ graph TD
 
 - **Server-authoritative state:** PostgreSQL is the single source of truth for all sessions, players, questions, answers, and results. Clients never decide game state transitions locally.
 - **Shared contract package (`@youandi/shared`):** Request/response bodies, route parameters, error codes, and Socket.IO payloads are defined as Zod schemas and shared across all apps.
-- **Sockets as a hint layer:** Socket.IO events (`playerJoined`, `answerSubmitted`, `playerComplete`, `resultsReady`) signal clients to update or rehydrate. Clients re-fetch authoritative state over REST upon reconnecting or foregrounding.
+- **Sockets as a hint layer:** Socket.IO events (`playerJoined`, `answerSubmitted`, `playerComplete`) signal clients to update or rehydrate. Clients re-fetch authoritative state over REST upon reconnecting or foregrounding.
 - **Device & bearer identity:**
   - Authenticated endpoints validate `x-player-id` using NestJS `PlayerGuard`.
   - Client devices provide `x-device-id` to associate sessions and power the active games list (`GET /sessions/mine`).

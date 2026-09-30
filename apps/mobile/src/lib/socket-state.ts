@@ -13,8 +13,7 @@ export type SocketEventName =
   | 'reconnect_failed'
   | 'playerJoined'
   | 'answerSubmitted'
-  | 'playerComplete'
-  | 'resultsReady';
+  | 'playerComplete';
 
 export type SocketEventLogEntry = {
   id: string;

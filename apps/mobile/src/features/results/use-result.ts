@@ -59,7 +59,6 @@ export function useResult(
 
   const resultRef = useRef<Result | null>(null);
   const statusRef = useRef<ResultStatus>('loading');
-  const resolveRef = useRef<(data: Result) => void>(() => {});
   const retryingRef = useRef(false);
 
   useEffect(() => {
@@ -73,9 +72,6 @@ export function useResult(
   useGameSocket(
     enableSocket ? sessionId : null,
     enableSocket ? playerId : null,
-    {
-      onResultsReady: (payload) => resolveRef.current(payload),
-    },
   );
 
   useEffect(() => {
@@ -98,8 +94,6 @@ export function useResult(
       setStatus('ready');
       setError(null);
     };
-
-    resolveRef.current = handleReady;
 
     const scheduleNext = () => {
       if (!mounted) return;

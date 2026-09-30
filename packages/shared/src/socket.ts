@@ -1,10 +1,7 @@
 // Socket contract shared by apps/api (server), apps/web, and apps/mobile
-// (clients). Matches MIGRATION-AUDIT.md §5 SOCKET CONTRACT exactly,
-// including `resultsReady`, which is documented but never emitted by the
-// current server implementation — see the note on its payload below.
+// (clients). Matches MIGRATION-AUDIT.md §5 SOCKET CONTRACT exactly.
 
 import { z } from 'zod';
-import { resultSchema } from './schemas';
 
 // ── Client → Server payloads ─────────────────────────────────────────────
 
@@ -51,23 +48,12 @@ export const playerCompletePayloadSchema = z.object({
 });
 export type PlayerCompletePayload = z.infer<typeof playerCompletePayloadSchema>;
 
-/**
- * Documented in architecture_documentation.md as carrying the `QuizResult`
- * payload, but `QuizGateway.emitResultsReady` is never called anywhere in
- * apps/api and no client subscribes to it (MIGRATION-AUDIT.md §6 DRIFT #1).
- * Typed here to match the documented shape; it is currently dead code on
- * both ends, not a live event.
- */
-export const resultsReadyPayloadSchema = resultSchema;
-export type ResultsReadyPayload = z.infer<typeof resultsReadyPayloadSchema>;
-
 // ── socket.io generics ───────────────────────────────────────────────────
 
 export interface ServerToClientEvents {
   playerJoined: (payload: PlayerJoinedPayload) => void;
   answerSubmitted: (payload: AnswerSubmittedPayload) => void;
   playerComplete: (payload: PlayerCompletePayload) => void;
-  resultsReady: (payload: ResultsReadyPayload) => void;
 }
 
 export interface ClientToServerEvents {

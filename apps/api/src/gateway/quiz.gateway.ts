@@ -12,7 +12,6 @@ import type {
   ClientToServerEvents,
   JoinRoomPayload,
   QuizCompletePayload,
-  ResultsReadyPayload,
   ServerToClientEvents,
   SubmitAnswerSocketPayload,
 } from '@youandi/shared';
@@ -96,11 +95,5 @@ export class QuizGateway implements OnGatewayConnection, OnGatewayDisconnect {
     client.to(data.sessionId).emit('playerComplete', {
       playerId: data.playerId,
     });
-  }
-
-  // Server-side method to emit results ready. Never invoked anywhere in
-  // apps/api today — see MIGRATION-AUDIT.md §6 DRIFT #1.
-  emitResultsReady(sessionId: string, results: ResultsReadyPayload): void {
-    this.server.to(sessionId).emit('resultsReady', results);
   }
 }

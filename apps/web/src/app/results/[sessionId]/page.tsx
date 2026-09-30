@@ -4,7 +4,6 @@ import { useEffect, useState, useCallback, use, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { toBlob } from 'html-to-image';
 import { api, loadPlayerInfo } from '@/lib/api';
-import { useSocket } from '@/lib/useSocket';
 import type { Result, ResultStatusResponse } from '@youandi/shared';
 
 export default function ResultsPage({ params }: { params: Promise<{ sessionId: string }> }) {
@@ -35,8 +34,6 @@ export default function ResultsPage({ params }: { params: Promise<{ sessionId: s
       setLoading(false); // Can't do anything without playerId
     }
   }, [sessionId]);
-
-  const { on } = useSocket(sessionId, playerId);
 
   const applyResult = useCallback((data: Result) => {
     // Defensive parsing for LLM arrays in case they're malformed
@@ -125,19 +122,6 @@ export default function ResultsPage({ params }: { params: Promise<{ sessionId: s
       if (pollIntervalId) clearTimeout(pollIntervalId);
     };
   }, [playerId, sessionId, result, applyResult]);
-
-  useEffect(() => {
-    if (!result) {
-      const cleanup = on('resultsReady', () => {
-        if (!result && playerId) {
-          api.getResult(sessionId).then(env => {
-            if (env.status === 'ready' && env.data) applyResult(env.data);
-          }).catch(console.error);
-        }
-      });
-      return cleanup;
-    }
-  }, [on, result, playerId, sessionId, applyResult]);
 
   // Animate score counter
   useEffect(() => {

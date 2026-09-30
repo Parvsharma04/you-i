@@ -127,7 +127,6 @@ It broadcasts server-originated hints like:
 - `playerJoined`
 - `answerSubmitted`
 - `playerComplete`
-- `resultsReady` (present in the contract and server code, but not used as a primary client path in the shipped web UX)
 
 ### Architectural rule
 
